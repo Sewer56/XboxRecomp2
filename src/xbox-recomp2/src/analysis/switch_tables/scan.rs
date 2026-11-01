@@ -3,12 +3,10 @@
 use super::candidate::Candidate;
 use crate::decode::{DecodeBuffer, DecodeOutcome, Decoder, Mnemonic, immediate};
 use crate::executable::{Executable, SectionFlags};
-use derive_more::Constructor;
 
 /// Results from one pass over the executable's code sections.
 ///
 /// See [`collect`] for how the scan fills these.
-#[derive(Constructor)]
 pub(super) struct ScanOutcome {
     /// Indirect jumps that may dispatch through a table, kept in
     /// section/offset scan order.
@@ -123,7 +121,11 @@ pub(super) fn collect(
     comparisons.sort_unstable();
     comparisons.dedup();
 
-    ScanOutcome::new(candidates, entries, comparisons)
+    ScanOutcome {
+        candidates,
+        entries,
+        comparisons,
+    }
 }
 
 #[cfg(test)]

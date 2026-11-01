@@ -1015,7 +1015,6 @@ dependencies = [
  "ahash",
  "bitflags",
  "criterion",
- "derive_more",
  "endian-writer",
  "indoc",
  "optional",

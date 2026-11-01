@@ -18,7 +18,6 @@ use crate::codegen::function::model::{BlockOpIndex, Op};
 use crate::decode::{
     Insn, MemoryInfo, Mnemonic, Register, RegisterClass, immediate, memory, register,
 };
-use derive_more::Constructor;
 use optional::Optioned;
 
 /// The instructions that write one call's arguments.
@@ -31,7 +30,7 @@ pub(in crate::codegen) struct CallSetup {
 }
 
 /// A write to the stack.
-#[derive(Clone, Copy, Constructor)]
+#[derive(Clone, Copy)]
 struct StackWrite {
     /// Offset of the write, relative to ESP at the call.
     offset: i32,
@@ -232,7 +231,10 @@ fn stack_write(insn: &Insn, push: bool, esp_offset: i32) -> Option<StackWrite> {
     // A push writes 32 bits at the new ESP.
     if push {
         // Index 0 for immediate, e.g. `push 0x123456`
-        return capturable_source(insn, 0).then_some(StackWrite::new(esp_offset, 32));
+        return capturable_source(insn, 0).then_some(StackWrite {
+            offset: esp_offset,
+            bits: 32,
+        });
     }
 
     // Like `mov [esp+4], eax`.
@@ -241,7 +243,10 @@ fn stack_write(insn: &Insn, push: bool, esp_offset: i32) -> Option<StackWrite> {
     }
     let destination = &insn.operands()[0];
     let offset = stack_offset(memory(destination)?, esp_offset)?;
-    Some(StackWrite::new(offset, destination.size))
+    Some(StackWrite {
+        offset,
+        bits: destination.size,
+    })
 }
 
 /// Returns the argument that a write at `offset` fills exactly.
