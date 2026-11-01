@@ -78,8 +78,7 @@ flowchart TD
 
     subgraph perfunc[Inside stage 5]
         BUILD[Build every function]
-        PASSES[Run global passes]
-        LOCAL[Run local passes on one function]
+        PASSES[Run optimisation passes]
         EMIT[Write it as C++]
     end
 
@@ -93,9 +92,8 @@ flowchart TD
     REN --> GEN
     GEN --> BUILD
     BUILD --> PASSES
-    PASSES --> LOCAL
-    LOCAL --> EMIT
-    EMIT -->|next function| LOCAL
+    PASSES --> EMIT
+    EMIT -->|next function| EMIT
     EMIT --> GEN
     GEN --> WRITE
     WRITE --> OUT

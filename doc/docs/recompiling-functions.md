@@ -302,21 +302,8 @@ decoded: jnz 0x11423   (2 bytes)
 
 !!! note "Where this happens"
 
-    `Recompiler::generate` in `recompiler.rs`:
-
-    - `run_global` over all models.
-    - `run_local` on each, just before writing it.
-
-    Both live in `codegen/optimizations/mod.rs`.
-
-Every function is built before any pass runs.
-
-- **Global passes** run first and see all functions at once.
-- **Local passes** run on one function at a time, just before it is written.
-
-The two are complimentary, you'll need global passes for the optimisations
-that go across functions (e.g. return values). Local passes for everything
-else.
+    `codegen/optimizations/mod.rs`, called by `Recompiler::generate` in
+    `recompiler.rs`.
 
 See [Optimizations].
 

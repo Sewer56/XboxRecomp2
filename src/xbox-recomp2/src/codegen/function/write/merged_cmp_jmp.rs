@@ -190,8 +190,8 @@ mod tests {
     use crate::codegen::function::model::FunctionModel;
     use crate::codegen::function::write::write;
     use crate::codegen::function::{FunctionScratch, GenerationContext};
+    use crate::codegen::optimizations;
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, executable, model_of};
-    use crate::codegen::optimizations::run_global;
     use crate::codegen::run_state::RunState;
     use crate::config::{Optimizations, RecompilerConfig, SpeedHacks};
     use ahash::HashSet;
@@ -219,7 +219,7 @@ mod tests {
         };
 
         let mut model = model_of(code);
-        run_global(
+        optimizations::run(
             slice::from_mut(&mut model),
             &FunctionGraph::default(),
             &switches,

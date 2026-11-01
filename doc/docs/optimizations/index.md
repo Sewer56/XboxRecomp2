@@ -20,22 +20,6 @@ and before being written out as C++.
 Optimizations that change how functions are called share some [helpers].<br/>
 e.g. to track the stack, or find every caller of a function.
 
-## How they run
-
-The recompiler builds every function first.<br/>
-Then it runs the optimizations in two groups:
-
-1. **Whole-program** optimizations change how functions call each other.
-2. **Per-function** optimizations look at one function at a time.
-
-| Optimization              | Group         |
-| ------------------------- | ------------- |
-| [`eliminate_return_slot`] | Whole-program |
-| [`eliminate_stack_args`]  | Whole-program |
-| [`fuse_compare_branch`]   | Whole-program |
-| [`eliminate_dead_flags`]  | Whole-program |
-| [`x87_lowering`]          | Per-function  |
-
 [function model]: ../recompiling-functions.md
 [`eliminate_return_slot`]: return-slot-elimination.md
 [`eliminate_stack_args`]: stack-argument-elimination.md

@@ -1,19 +1,4 @@
 //! Runs the enabled optimisations on functions.
-//!
-//! - [`run_global`]: optimisations that need every function at once.
-//! - [`run_local`]: optimisations that need only one function.
-//!
-//! Our strategy is as follows:
-//!
-//! - We run global optimisations first.
-//!     - These work across functions, i.e. those that touch the ABI.
-//! - We run function-local optimisations after.
-//!
-//! For example, [`eliminate_stack_args`] allows to skip some `push + pop`
-//! combinations across function calls when we can determine it's relatively
-//! safe.
-//!
-//! [`Optimizations`] controls which optimisations are enabled.
 
 use crate::analysis::FunctionGraph;
 use crate::codegen::function::model::FunctionModel;
@@ -28,8 +13,8 @@ pub(in crate::codegen) mod helpers;
 mod merge_cmp_jmp;
 mod x87_lowering;
 
-/// Runs every enabled optimisation that needs all functions at once.
-pub(crate) fn run_global(
+/// Runs all optimisation passes.
+pub(crate) fn run(
     models: &mut [FunctionModel],
     graph: &FunctionGraph,
     switches: &Optimizations,
@@ -71,11 +56,10 @@ pub(crate) fn run_global(
             eliminate_dead_flags::run(models, &boundaries);
         }
     }
-}
 
-/// Runs every enabled optimisation that needs only one function.
-pub(crate) fn run_local(model: &mut FunctionModel, switches: &Optimizations) {
     if switches.runs_x87_lowering() {
-        x87_lowering::run(model);
+        for model in models.iter_mut() {
+            x87_lowering::run(model);
+        }
     }
 }

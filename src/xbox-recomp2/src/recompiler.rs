@@ -464,8 +464,8 @@ impl<'a> Recompiler<'a> {
             })
             .collect();
 
-        // Run global optimisation passes.
-        optimizations::run_global(
+        // Run optimisation passes.
+        optimizations::run(
             &mut models,
             &self.function_graph,
             &self.config.optimizations,
@@ -473,11 +473,11 @@ impl<'a> Recompiler<'a> {
             diag,
         );
 
-        // Run local optimisations on each function, then write it.
+        // Write each function.
         let total = models.len();
         let mut body = Vec::new();
 
-        for (index, mut model) in models.into_iter().enumerate() {
+        for (index, model) in models.into_iter().enumerate() {
             // Start a new output file every FUNCTIONS_PER_UNIT functions.
             if index > 0 && index % FUNCTIONS_PER_UNIT == 0 {
                 writer.save(None)?;
@@ -490,8 +490,7 @@ impl<'a> Recompiler<'a> {
                 let _ = writeln!(diag, "Recompiling functions... {percent:.0}%");
             }
 
-            // Optimise the function, then write it.
-            optimizations::run_local(&mut model, &self.config.optimizations);
+            // Write the function.
             body.clear();
             write_function(
                 &self.executable,
