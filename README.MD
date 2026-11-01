@@ -4,7 +4,7 @@
 
 XboxRecomp2 recompiler.
 
-For the cool ass docs [documentation][docs].
+[Website & Documentation][docs].<br/>
 nya~ 🐱 💜
 
 [ci-badge]: https://github.com/Sewer56/XboxRecomp2/actions/workflows/rust.yml/badge.svg
