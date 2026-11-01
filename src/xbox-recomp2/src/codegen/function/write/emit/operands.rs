@@ -85,7 +85,7 @@ pub(in super::super) fn ea(operand: &DecodedOperand) -> String {
 /// # Returns
 ///
 /// - Registers: from [`get_x86_reg`].
-/// - Immediates: uppercase hex cut to 32 bits, like `0x1Fu`.
+/// - Immediates: from [`constant`], cut to the `size_suffix` width.
 /// - Memory: `X86_LOAD_<size_suffix>(<ea>)`.
 /// - Anything else: an empty string.
 ///
@@ -95,6 +95,7 @@ pub(in super::super) fn ea(operand: &DecodedOperand) -> String {
 /// format_operand(eax, "U32")       ->  "ctx.eax.u32"
 /// format_operand(al, "U8")         ->  "ctx.eax.u8_lo"
 /// format_operand(0x1f, "U32")      ->  "0x1Fu"
+/// format_operand(-1, "U8")         ->  "0xFFu"
 /// format_operand([esi+8], "U32")   ->  "X86_LOAD_U32(ctx.esi.u32 + 0x8)"
 /// ```
 pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str) -> String {
@@ -102,12 +103,31 @@ pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str) -> Str
         return get_x86_reg(operand_reg_value(operand));
     }
     if let Some(imm) = immediate(operand) {
-        return format!("0x{:X}u", imm.value as u32);
+        let bits = match size_suffix {
+            "U8" => 8,
+            "U16" => 16,
+            _ => 32,
+        };
+        return constant(imm.value, bits);
     }
     if memory(operand).is_some() {
         return format!("X86_LOAD_{size_suffix}({})", ea(operand));
     }
     String::new()
+}
+
+/// Returns an immediate as unsigned hex, cut to `bits`.
+///
+/// # Examples
+///
+/// ```text
+/// constant(0xFFFF_FFFF_FFFF_FFFF, 8)   ->  "0xFFu"
+/// constant(0xFFFF_FFFF_FFFF_FFFF, 32)  ->  "0xFFFFFFFFu"
+/// constant(0x20, 32)                   ->  "0x20u"
+/// ```
+pub(super) fn constant(value: u64, bits: u16) -> String {
+    let mask = u64::MAX >> (64 - bits);
+    format!("0x{:X}u", value & mask)
 }
 
 /// Returns the C type for an operand size in bits.

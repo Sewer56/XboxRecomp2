@@ -15,7 +15,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let src_str = if register(src).is_some() {
         get_x86_reg(register(src).unwrap())
     } else if immediate(src).is_some() {
-        immediate(src).unwrap().value.to_string()
+        constant(immediate(src).unwrap().value, size)
     } else {
         format!("X86_LOAD_{size_suffix}({})", ea(src))
     };

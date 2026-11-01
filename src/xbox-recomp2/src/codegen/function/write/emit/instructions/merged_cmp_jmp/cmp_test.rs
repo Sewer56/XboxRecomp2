@@ -1,7 +1,7 @@
 //! Reads the values a merged `cmp` or `test` compares.
 
 use super::super::prelude::*;
-use super::{IntegerCompare, constant, written_later};
+use super::{IntegerCompare, written_later};
 use crate::codegen::function::model::{MergedCmpJmp, MergedInstructionKind};
 use crate::decode::CpuFlag;
 

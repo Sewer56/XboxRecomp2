@@ -276,9 +276,3 @@ fn written_later(merged: &MergedCmpJmp, reg: Register) -> bool {
         .iter()
         .any(|insn| RegisterAccess::of(&insn.guest.insn).writes(reg))
 }
-
-/// An immediate cut to `bits`, like `0xFFu` for `-1` in 8 bits.
-fn constant(value: u64, bits: u16) -> String {
-    let mask = u64::MAX >> (64 - bits);
-    format!("0x{:X}u", value & mask)
-}

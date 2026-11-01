@@ -2,7 +2,7 @@
 
 use super::super::data_transfer::register_assignment;
 use super::super::prelude::*;
-use super::{IntegerCompare, constant, written_later};
+use super::{IntegerCompare, written_later};
 use crate::codegen::function::model::{Condition, MergedCmpJmp, MergedInstructionKind};
 use crate::decode::MachineMode;
 
