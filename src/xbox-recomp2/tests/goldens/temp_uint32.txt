@@ -1,0 +1,4 @@
+	uint32_t val_uint32_0 = 0;
+
+	uint32_t val_uint32_1 = 0;
+

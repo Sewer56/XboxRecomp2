@@ -1,0 +1,2 @@
+extern void mid_hook(X86Context& __restrict ctx, uint8_t* base);
+

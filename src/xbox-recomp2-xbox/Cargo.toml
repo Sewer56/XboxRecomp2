@@ -1,0 +1,26 @@
+[package]
+name = "xbox-recomp2-xbox"
+# Not yet released, don't bump this.
+version = "0.1.0"
+edition = "2024"
+description = "Xbox (XBE) executable loading for the XboxRecomp2 recompiler"
+repository = "https://github.com/Sewer56/XboxRecomp2"
+license-file = "LICENSE"
+# keywords (search terms): https://crates.io/keywords
+keywords = ["xbox", "xbe", "parser", "emulation", "recompiler"]
+# categories (fixed list): https://crates.io/categories
+categories = ["emulators", "parser-implementations", "development-tools"]
+
+[dependencies]
+xbox-recomp2 = { path = "../xbox-recomp2", version = "0.1.0" }
+xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.1.0" }
+bitflags = "2"
+endian-writer = "2.3.0"
+endian-writer-derive = "0.2.0"
+zydis = { version = "4.1.1", features = ["formatter"] }
+
+[dev-dependencies]
+rstest = "0.28.0"
+
+[lints]
+workspace = true

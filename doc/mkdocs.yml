@@ -1,0 +1,89 @@
+site_name: XboxRecomp2
+site_url: https://github.com/Sewer56/XboxRecomp2
+
+repo_name: Sewer56/XboxRecomp2
+repo_url: https://github.com/Sewer56/XboxRecomp2
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Sewer56
+    # - icon: fontawesome/brands/twitter
+    #  link: https://twitter.com/thesewer56?lang=en-GB
+
+extra_css:
+  - vendor/Reloaded/Stylesheets/reloaded.css
+  - stylesheets/logo.css
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tasklist
+  - def_list
+  - meta
+  - md_in_html
+  - attr_list
+  - footnotes
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+theme:
+  name: material
+  palette:
+    scheme: reloaded3-slate
+  features:
+    - navigation.instant
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+      cache_safe: true
+  - exclude-unused-files:
+      file_types_to_check: [ "psd", "7z", "kra" ]
+      file_types_override_mode: append
+      enabled: true
+
+nav:
+  - Home: index.md
+  - How It Works:
+      - Overview: how-it-works.md
+      - Function Discovery: function-discovery.md
+      - Recompiling Functions: recompiling-functions.md
+  - Optimizations:
+      - Helpers:
+        - Overview: optimizations/helpers/index.md
+        - Stack Tracking: optimizations/helpers/stack-tracking.md
+        - Function Stacks: optimizations/helpers/function-stacks.md
+        - Stack Arguments: optimizations/helpers/stack-arguments.md
+        - Entry Loads: optimizations/helpers/entry-loads.md
+        - Call Setup: optimizations/helpers/call-setup.md
+        - Known Callers: optimizations/helpers/known-callers.md
+        - Stack Shift: optimizations/helpers/stack-shift.md
+        - Flag Effects: optimizations/helpers/flag-effects.md
+        - Flag Boundaries: optimizations/helpers/flag-boundaries.md
+        - Needed Flags: optimizations/helpers/needed-flags.md
+      - Overview: optimizations/index.md
+      - Return Slot Elimination: optimizations/return-slot-elimination.md
+      - Stack Argument Elimination: optimizations/stack-argument-elimination.md
+      - x87 Lowering: optimizations/x87-lowering.md
+      - Merged Compare and Jump: optimizations/merge-compare-and-jump.md
+      - Skip Unused Flags: optimizations/skip-unused-flags.md
+
+  - Why I Wrote XboxRecomp2: why-i-wrote-xboxrecomp2.md
+  - License: https://reloaded-project.github.io/Reloaded.MkDocsMaterial.Themes.R2/Pages/license.html
+  - How to Document: https://reloaded-project.github.io/Reloaded.MkDocsMaterial.Themes.R2/Pages/contributing.html

@@ -1,0 +1,143 @@
+name: Rust
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "*"
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run formatter check
+        if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+        uses: actions-rust-lang/rustfmt@v1
+        with:
+          manifest-path: Cargo.toml
+
+  semver-checks:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Run semver check
+        uses: Reloaded-Project/devops-cargo-semver-checks-action@v1
+        with:
+          manifest-path: Cargo.toml
+          feature-group: all-features
+          rust-toolchain: stable
+          rust-target: x86_64-unknown-linux-gnu
+
+  build-and-test:
+    name: ${{ matrix.label }}
+    strategy:
+      matrix:
+        # TODO: Re-enable extra targets when repo goes public.
+        #       (Rate limits on private repos)
+        include:
+          # Linux
+          - { label: "Linux x64", os: ubuntu-latest, target: x86_64-unknown-linux-gnu, use-cross: false }
+          # - { label: "Linux x86", os: ubuntu-latest, target: i686-unknown-linux-gnu, use-cross: false }
+          # - { label: "Linux ARM64", os: ubuntu-latest, target: aarch64-unknown-linux-gnu, use-cross: true }
+          # - { label: "Linux ARMv7", os: ubuntu-latest, target: armv7-unknown-linux-gnueabihf, use-cross: true }
+
+          # Windows
+          - { label: "Windows x64", os: windows-latest, target: x86_64-pc-windows-msvc, use-cross: false }
+          # - { label: "Windows x86", os: windows-latest, target: i686-pc-windows-msvc, use-cross: false }
+
+          # macOS
+          # - { label: "macOS Intel", os: macos-15-intel, target: x86_64-apple-darwin, use-cross: false }
+          # - { label: "macOS Apple Silicon", os: macos-latest, target: aarch64-apple-darwin, use-cross: false }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run Tests
+        uses: Reloaded-Project/devops-rust-test-and-coverage@v1
+        with:
+          rust-project-path: ./
+          upload-coverage: false
+          target: ${{ matrix.target }}
+          use-cross: ${{ matrix.use-cross }}
+      - name: Check documentation is valid
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --no-deps --workspace --all-features --document-private-items --target ${{ matrix.target }}
+
+      - name: Run linter
+        if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+        run: cargo clippy --workspace --all-features --target ${{ matrix.target }} -- -D warnings
+
+  build-cli:
+    name: ${{ matrix.label }}
+    strategy:
+      matrix:
+        # TODO: Re-enable extra targets when repo goes public.
+        #       (Rate limits on private repos)
+        include:
+          # Linux
+          - { label: "CLI Linux x64", os: ubuntu-latest, target: x86_64-unknown-linux-gnu, use-cross: false }
+          # - { label: "CLI Linux x86", os: ubuntu-latest, target: i686-unknown-linux-gnu, use-cross: false }
+          # - { label: "CLI Linux ARM64", os: ubuntu-latest, target: aarch64-unknown-linux-gnu, use-cross: true }
+          # - { label: "CLI Linux ARMv7", os: ubuntu-latest, target: armv7-unknown-linux-gnueabihf, use-cross: true }
+
+          # Windows
+          - { label: "CLI Windows x64", os: windows-latest, target: x86_64-pc-windows-msvc, use-cross: false }
+          # - { label: "CLI Windows x86", os: windows-latest, target: i686-pc-windows-msvc, use-cross: false }
+
+          # macOS
+          # - { label: "CLI macOS Intel", os: macos-15-intel, target: x86_64-apple-darwin, use-cross: false }
+          # - { label: "CLI macOS Apple Silicon", os: macos-latest, target: aarch64-apple-darwin, use-cross: false }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build CLI Binary
+        uses: Reloaded-Project/devops-rust-lightweight-binary@v1
+        with:
+          target: ${{ matrix.target }}
+          use-pgo: ${{ matrix.use-pgo && env.build-with-pgo }}
+          use-cross: ${{ matrix.use-cross }}
+          build-library: false
+          run-tests-and-coverage: false
+          rust-project-path: src/cli
+          workspace-path: .
+          pgo-project-path: src/xbox-recomp2
+          use-cache: true
+
+  publish-crate:
+    permissions:
+      contents: write
+
+    needs: [format-check, semver-checks, build-and-test, build-cli]
+    # Publish only on tags
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish Rust Crate and Artifacts
+        uses: Reloaded-Project/devops-publish-action@v3
+        with:
+          compression-tool: 7z
+          artifact-groups-file: .github/artifact-groups.yml
+          changelog-enabled: "true"
+          changelog-template: .github/changelog.hbs
+          changelog-is-release: ${{ startsWith(github.ref, 'refs/tags/') }}
+          changelog-release-tag: ${{ github.ref_name }}
+          changelog-override-starting-version: "true"
+          changelog-hide-credit: "true"

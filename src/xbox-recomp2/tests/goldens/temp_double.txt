@@ -1,0 +1,6 @@
+	x87_float val_double_0 = 0;
+
+	x87_float val_double_1 = 0;
+
+	x87_float val_double_2 = 0;
+

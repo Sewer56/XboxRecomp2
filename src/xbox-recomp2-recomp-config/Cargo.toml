@@ -1,0 +1,27 @@
+[package]
+name = "xbox-recomp2-recomp-config"
+# Not yet released, don't bump this.
+version = "0.1.0"
+edition = "2024"
+description = "recompConfig.toml parser for the XboxRecomp2 recompiler"
+repository = "https://github.com/Sewer56/XboxRecomp2"
+license-file = "LICENSE"
+# keywords (search terms): https://crates.io/keywords
+keywords = ["xbox", "recompiler", "config", "toml", "emulation"]
+# categories (fixed list): https://crates.io/categories
+categories = ["emulators", "parser-implementations", "development-tools"]
+
+[dependencies]
+ahash = "0.8"
+derive_more = { version = "2", features = ["from", "into"] }
+serde = { version = "1", features = ["derive"] }
+strum = { version = "0.28", features = ["derive"] }
+thiserror = "2.0"
+toml = "1.1.4"
+
+[dev-dependencies]
+indoc = "2.0.7"
+rstest = "0.28.0"
+
+[lints]
+workspace = true

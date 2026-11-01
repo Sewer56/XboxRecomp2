@@ -1,0 +1,7 @@
+# Test data we try to replicate.
+src/xbox-recomp2/tests/goldens/** -whitespace
+
+# Embedded headers; we split/splice on `\n` e.g. "\n//@state\n", so preserve LF.
+src/xbox-recomp2-xbox/src/x86_context_xbox.h -text
+src/xbox-recomp2/src/context_header/x86_context_core.h -text
+src/xbox-recomp2/src/context_header/x86_portable_simd.h -text

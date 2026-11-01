@@ -1,0 +1,9 @@
+#include "x86_recomp_shared.h"
+
+X86FuncMapping X86FuncMappings[] = {
+	{ 0x1100, FuncOne },
+	{ 0x2345, func_two },
+	{ 0x3333, __xbox_entry_point },
+	{ 0x9000, __imp__DbgPrint },
+	{ 0, nullptr }
+};

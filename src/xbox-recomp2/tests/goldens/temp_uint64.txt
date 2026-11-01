@@ -1,0 +1,4 @@
+	uint64_t val_uint64_0 = 0;
+
+	uint64_t val_uint64_1 = 0;
+

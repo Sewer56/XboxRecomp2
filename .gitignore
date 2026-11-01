@@ -1,0 +1,23 @@
+# Local personal stuff
+artifact
+
+# Local Code Review
+.vscode/local-reviews/
+
+# direnv
+.direnv/
+
+# Build Outputs
+/target
+
+# Profiling files
+perf.data.old
+perf.data
+flamegraph.svg
+
+# Code Coverage
+cobertura.xml
+tarpaulin-report.html
+
+# Reference Files
+ShadowRecomp

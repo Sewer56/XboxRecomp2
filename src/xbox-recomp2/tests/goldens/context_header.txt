@@ -1,0 +1,5 @@
+#pragma once
+#include "x86_config.h"
+
+struct CtxFixture { int field; };
+static_assert(sizeof(CtxFixture) == 4, "fixture");

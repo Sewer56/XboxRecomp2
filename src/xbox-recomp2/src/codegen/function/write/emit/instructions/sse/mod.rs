@@ -1,0 +1,37 @@
+//! SSE float math, moves and `mxcsr` access.
+
+pub(super) mod addps;
+pub(super) mod addss;
+pub(super) mod andps;
+pub(super) mod cmpss;
+pub(super) mod comiss;
+pub(super) mod cvtps2pi;
+pub(super) mod cvtsi2ss;
+pub(super) mod cvtss2si;
+pub(super) mod cvttss2si;
+pub(super) mod divss;
+mod helpers;
+pub(super) use helpers::compare_operands;
+pub(super) mod ldmxcsr;
+pub(super) mod maxps;
+pub(super) mod minps;
+pub(super) mod movaps;
+pub(super) mod movhlps;
+pub(super) mod movhps;
+pub(super) mod movlhps;
+pub(super) mod movlps;
+pub(super) mod movntps;
+pub(super) mod movss;
+pub(super) mod movups;
+pub(super) mod mulps;
+pub(super) mod mulss;
+pub(super) mod rsqrtss;
+pub(super) mod shufps;
+pub(super) mod sqrtss;
+pub(super) mod stmxcsr;
+pub(super) mod subps;
+pub(super) mod subss;
+pub(super) mod ucomiss;
+pub(super) mod unpckhps;
+pub(super) mod unpcklps;
+pub(super) mod xorps;

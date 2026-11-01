@@ -1,0 +1,42 @@
+[package]
+name = "xbox-recomp2"
+# Not yet released, don't bump this.
+version = "0.1.0"
+edition = "2024"
+description = "Rust port of the XboxRecomp x86-to-C++ recompiler (code generator only)"
+repository = "https://github.com/Sewer56/XboxRecomp2"
+license-file = "LICENSE"
+include = ["src/**/*"]
+readme = "README.MD"
+# keywords (search terms): https://crates.io/keywords
+keywords = ["x86", "recompiler", "transpiler", "emulation", "xbox"]
+# categories (fixed list): https://crates.io/categories
+categories = ["compilers", "emulators", "development-tools"]
+
+[dependencies]
+xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.1.0" }
+xbox-recomp2-recomp-config = { path = "../xbox-recomp2-recomp-config", version = "0.1.0" }
+zydis = { version = "4.1.1", features = ["formatter", "encoder"] }
+endian-writer = "2.3.0"
+ahash = "0.8"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2.0"
+derive_more = { version = "2", features = ["constructor"] }
+bitflags = "2"
+indoc = "2.0.7"
+optional = "0.5"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dev-dependencies]
+criterion = "0.8.2"
+rstest = "0.28.0"
+
+# Benchmark Stuff
+[[bench]]
+name = "my_benchmark"
+path = "benches/my_benchmark/main.rs"
+harness = false
+
+[lints]
+workspace = true

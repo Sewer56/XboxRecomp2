@@ -1,0 +1,17 @@
+#pragma once
+
+#include "x86_config.h"
+#include "x86_context.h"
+
+#define X86_OVERRIDE_ALLOWED_FuncOne 0
+#define X86_OVERRIDE_ADDRESS_FuncOne "0x1100"
+X86_EXTERN_FUNC(FuncOne);
+#define X86_OVERRIDE_ALLOWED_func_two 1
+#define X86_OVERRIDE_ADDRESS_func_two "0x2345"
+X86_EXTERN_FUNC(func_two);
+#define X86_OVERRIDE_ALLOWED___xbox_entry_point 0
+#define X86_OVERRIDE_ADDRESS___xbox_entry_point "0x3333"
+X86_EXTERN_FUNC(__xbox_entry_point);
+#define X86_OVERRIDE_ALLOWED___imp__DbgPrint 1
+#define X86_OVERRIDE_ADDRESS___imp__DbgPrint "0x9000"
+X86_EXTERN_FUNC(__imp__DbgPrint);

@@ -1,0 +1,2 @@
+	printf("WARNING Function doesn't end with JMP or RET, possible analysis error. cd00\n");
+	//WARNING Function doesn't end with JMP or RET, possible analysis error.

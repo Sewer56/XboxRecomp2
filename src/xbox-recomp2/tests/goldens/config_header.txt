@@ -1,0 +1,16 @@
+#pragma once
+#ifndef X86_CONFIG_H_INCLUDED
+#define X86_CONFIG_H_INCLUDED
+
+
+#define X86_IMAGE_BASE 0x10000ull
+#define X86_IMAGE_SIZE 0x8D3000ull
+#define X86_CODE_D3D8V 5849ull
+#define X86_CODE_BASE 0x1000ull
+#define X86_CODE_SIZE 0x6E00ull
+
+#ifdef X86_INCLUDE_DETAIL
+#include "x86_detail.h"
+#endif
+
+#endif
