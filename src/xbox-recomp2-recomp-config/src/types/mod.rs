@@ -55,8 +55,8 @@ pub mod switch_table;
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct RecompilerConfig {
     // ── Derived ──────────────────────────────────────────────────────────────
-    /// Directory of the config file, with a trailing `/`.
-    /// Empty when the path has no `/`.
+    /// Directory of the config file, with a trailing path separator.
+    /// Empty when the path has no separator.
     pub directory_path: Box<str>,
 
     // ── [main] ───────────────────────────────────────────────────────────────

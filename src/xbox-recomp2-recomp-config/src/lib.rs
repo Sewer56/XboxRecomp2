@@ -80,10 +80,10 @@ pub struct LoadedConfig {
 ///
 /// # Returns
 ///
-/// - Everything up to and including the last `/` of `config_path`.
-/// - An empty string when the path contains no `/`.
+/// - Everything up to and including the last path separator of `config_path`.
+/// - An empty string when the path contains no separator.
 pub fn directory_of(config_path: &str) -> &str {
-    match config_path.rfind('/') {
+    match config_path.rfind(std::path::is_separator) {
         Some(index) => &config_path[..=index],
         None => "",
     }
@@ -161,7 +161,7 @@ mod tests {
 
         assert_eq!(
             &*config.directory_path,
-            format!("{}/", dir.to_string_lossy())
+            format!("{}{}", dir.to_string_lossy(), std::path::MAIN_SEPARATOR)
         );
         assert_eq!(&*config.file_path, "game.bin");
         assert_eq!(
