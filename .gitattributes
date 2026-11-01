@@ -1,5 +1,6 @@
 # Test data we try to replicate.
-src/xbox-recomp2/tests/goldens/** -whitespace
+# We byte-for-byte compare it; so don't break it on Windows with CRLF please.
+src/xbox-recomp2/tests/goldens/** -whitespace -text
 
 # Embedded headers; we split/splice on `\n` e.g. "\n//@state\n", so preserve LF.
 src/xbox-recomp2-xbox/src/x86_context_xbox.h -text
