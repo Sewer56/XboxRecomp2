@@ -105,7 +105,7 @@ That's an exercise for the reader 😉.
 
 !!! danger "Black Hedgehog go brr!"
 
-    Moved to [why I wrote it](./why-i-wrote-it.md)
+    Moved to [why I wrote it](./why-i-wrote-xboxrecomp2.md)
 
     This requires some storytelling.
 
