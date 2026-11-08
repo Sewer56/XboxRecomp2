@@ -241,7 +241,7 @@ fn collect_jump_target(
 
         // Not ensure it lands in function before we insert it. Thanks.
         let offset_from_base = target.wrapping_sub(base);
-        if offset_from_base > 0 && offset_from_base < size {
+        if offset_from_base < size {
             labels.insert(target);
         }
     }
@@ -312,7 +312,7 @@ mod tests {
     #[case::first_byte_and_end(
         &[0xEB, 0xFE, 0x74, 0x00], // jmp -2; jz +0
         0x1000,
-        &[], // jmp lands on the first byte, jz on the end (0x1004)
+        &[0x1000], // jmp lands on the first byte, jz on the end (0x1004)
     )]
     #[case::outside(
         &[0x74, 0x20], // jz +0x20
@@ -327,7 +327,7 @@ mod tests {
     #[case::wrapped(
         &[0x74, 0x00, 0x74, 0xFD, 0x74, 0xFA], // jz +0; jz -3; jz -6
         u32::MAX - 1,
-        &[0, u32::MAX], // first two jz; the last lands on the first byte
+        &[0, u32::MAX - 1, u32::MAX], // first two jz; the last lands on the first byte
     )]
     fn range_should_label_jump_targets_inside_function(
         #[case] data: &[u8],

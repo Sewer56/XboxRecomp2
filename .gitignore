@@ -4,6 +4,9 @@ artifact
 # Local Code Review
 .vscode/local-reviews/
 
+# Visual Studio 2015/2017 cache/options directory
+.vs/
+
 # direnv
 .direnv/
 
