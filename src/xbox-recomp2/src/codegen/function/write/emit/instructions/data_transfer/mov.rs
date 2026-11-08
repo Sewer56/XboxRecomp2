@@ -44,7 +44,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(dst).is_some() && segment_equals(dst, Register::FS) {
         // MOV FS:[offset], reg
         let offset = memory(dst).unwrap().disp.displacement as u32;
-        let src_str = format_operand(src, operand_size_name(size));
+        let src_str = ctx.format_operand(src, operand_size_name(size));
         match ctx.route(Register::FS, offset, size, true) {
             MemoryRoute::Statement(template) => ctx.emit_platform_statement(&template, &src_str),
             _ => ctx.missing_form(),
@@ -72,7 +72,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     } else if memory(dst).is_some() && segment_equals(dst, Register::DS) {
         //write
         let offset = memory(dst).unwrap().disp.displacement as u32;
-        let value = format_operand(src, operand_size_name(size));
+        let value = ctx.format_operand(src, operand_size_name(size));
         match ctx.route(Register::DS, offset, dst.size, true) {
             MemoryRoute::Statement(template) => {
                 ctx.emit_platform_statement(&template, &value);
@@ -86,13 +86,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
     }
 
-    let src_str = format_operand(src, operand_size_name(size));
+    let src_str = ctx.format_operand(src, operand_size_name(size));
 
     if !src_str.is_empty() {
         // Special case for memory destinations
         if memory(dst).is_some() {
             let size_suffix = operand_size_name(size);
-            let dst_ea = ea(dst);
+            let dst_ea = ctx.ea(dst);
             cpp!(ctx.out, "X86_STORE_{size_suffix}({dst_ea}, {src_str});");
         } else if let Some(dst_reg) = register(dst) {
             write_register(ctx, dst_reg, &src_str);

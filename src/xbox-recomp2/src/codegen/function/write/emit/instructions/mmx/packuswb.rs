@@ -22,7 +22,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             "
             );
         } else if memory(src).is_some() {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(
                 ctx.out,
                 "
@@ -47,7 +47,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             );
         } else if memory(src).is_some() {
             // Memory to XMM register
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(ctx.out, "
                 __m128i src_val_{base} = _mm_loadu_si128(reinterpret_cast<const __m128i*>(base + ({addr})));
                 ctx.xmm[{dst_idx}].reg = _mm_castsi128_ps(_mm_packus_epi16(_mm_castps_si128(ctx.xmm[{dst_idx}].reg), src_val_{base}));

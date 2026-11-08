@@ -20,26 +20,26 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
         // MMX to memory
         (None, Some(RegisterClass::MMX), true, _) => {
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             let src_idx = mmx_index(register(src).unwrap());
             cpp!(ctx.out, "X86_STORE_U64({addr}, {mmx}[{src_idx}]);");
         }
         // Memory to MMX
         (Some(RegisterClass::MMX), None, _, true) => {
             let dst_idx = mmx_index(register(dst).unwrap());
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(ctx.out, "{mmx}[{dst_idx}] = X86_LOAD_U64({addr});");
         }
         // XMM to memory (lower 64 bits only)
         (None, Some(RegisterClass::XMM), true, _) => {
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             let src_idx = xmm_index(register(src).unwrap());
             cpp!(ctx.out, "X86_STORE_U64({addr}, ctx.xmm[{src_idx}].u64[0]);");
         }
         // Memory to XMM (lower 64 bits; zero upper)
         (Some(RegisterClass::XMM), None, _, true) => {
             let index = xmm_index(register(dst).unwrap());
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(
                 ctx.out,
                 "

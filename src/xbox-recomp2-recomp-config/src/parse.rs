@@ -86,7 +86,7 @@ struct SpeedHacksSection {
     nonvolatile_stack: bool,
     plain_sse_memory: bool,
     lazy_cmov_load: bool,
-    unwrapped_string_addresses: bool,
+    native_sized_addresses: bool,
     clobber_eflags_for_unknown_code: bool,
 }
 
@@ -139,7 +139,7 @@ impl Default for SpeedHacksSection {
             nonvolatile_stack: hacks.nonvolatile_stack,
             plain_sse_memory: hacks.plain_sse_memory,
             lazy_cmov_load: hacks.lazy_cmov_load,
-            unwrapped_string_addresses: hacks.unwrapped_string_addresses,
+            native_sized_addresses: hacks.native_sized_addresses,
             clobber_eflags_for_unknown_code: hacks.clobber_eflags_for_unknown_code,
         }
     }
@@ -199,7 +199,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             nonvolatile_stack: raw.speed_hacks.nonvolatile_stack,
             plain_sse_memory: raw.speed_hacks.plain_sse_memory,
             lazy_cmov_load: raw.speed_hacks.lazy_cmov_load,
-            unwrapped_string_addresses: raw.speed_hacks.unwrapped_string_addresses,
+            native_sized_addresses: raw.speed_hacks.native_sized_addresses,
             clobber_eflags_for_unknown_code: raw.speed_hacks.clobber_eflags_for_unknown_code,
         },
         ..RecompilerConfig::default()
@@ -286,6 +286,18 @@ fn reject_legacy_keys(path: &str, document: &Table) -> Result<(), ConfigError> {
             path,
             "optimizations.fast_trig".to_owned(),
             "moved; set `speed_hacks.fast_trig` instead",
+        ));
+    }
+
+    if document
+        .get("speed_hacks")
+        .and_then(Value::as_table)
+        .is_some_and(|table| table.contains_key("unwrapped_string_addresses"))
+    {
+        return Err(deprecated_key(
+            path,
+            "speed_hacks.unwrapped_string_addresses".to_owned(),
+            "renamed; set `speed_hacks.native_sized_addresses` instead",
         ));
     }
 

@@ -38,7 +38,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     }
 
     // Keep each address in guest width before the store adds the memory base,
-    // unless unwrapped_string_addresses is on.
+    // unless native_sized_addresses is on.
     if repeat {
         let start = super::rep_start(ctx);
         cpp!(

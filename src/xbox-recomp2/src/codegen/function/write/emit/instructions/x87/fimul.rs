@@ -12,7 +12,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(src).is_none() {
         return ctx.missing_form();
     }
-    let addr = ea(src);
+    let addr = ctx.ea(src);
     cpp!(ctx.out, "{fpu}.st0() *= ({int_type}){load}({addr});");
     emit_precision_flag(ctx);
     emit_st0_exception_flags(ctx);

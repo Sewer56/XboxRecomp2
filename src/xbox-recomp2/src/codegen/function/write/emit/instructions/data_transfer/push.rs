@@ -29,7 +29,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     } else if memory(dst).is_some() {
         //PUSH [mem]
         let size_name = operand_size_name(dst.size);
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(
             ctx.out,
             "{push}(ctx, base, X86_LOAD_{size_name}({dst_ea}));"

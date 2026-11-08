@@ -12,7 +12,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let mmx = ctx.mmx();
     let source = match (register(src), memory(src)) {
         (Some(reg), _) if is_mm0_to_7(reg) => format!("{mmx}[{}]", mmx_index(reg)),
-        (None, Some(_)) => format!("X86_LOAD_U64({})", ea(src)),
+        (None, Some(_)) => format!("X86_LOAD_U64({})", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
 

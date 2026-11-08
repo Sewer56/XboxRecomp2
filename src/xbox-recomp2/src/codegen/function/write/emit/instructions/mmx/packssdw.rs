@@ -32,7 +32,7 @@ fn emit_mmx_form(ctx: &mut Emitter<'_>, dst_idx: i64, src: &DecodedOperand, base
         emit_mmx_pack_result(ctx, &dst, base);
     } else if memory(src).is_some() {
         // Check operand size
-        let addr = ea(src);
+        let addr = ctx.ea(src);
         cpp!(
             ctx.out,
             "
@@ -75,7 +75,7 @@ fn emit_xmm_form(ctx: &mut Emitter<'_>, dst_idx: i64, src: &DecodedOperand, base
             ctx.xmm[{dst_idx}].reg = _mm_castsi128_ps(_mm_packs_epi32(_mm_castps_si128(ctx.xmm[{dst_idx}].reg), _mm_castps_si128(ctx.xmm[{src_idx}].reg)));
         ");
     } else if memory(src).is_some() {
-        let addr = ea(src);
+        let addr = ctx.ea(src);
         match src.size {
             64 => cpp!(ctx.out, "
                 uint64_t src_u64_{base} = X86_LOAD_U64({addr});

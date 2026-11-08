@@ -25,7 +25,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     } else if memory(dst).is_some() {
         // The address sees ESP after the pop (C++17 evaluation order).
         let size_suffix = operand_size_name(dst.size);
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(
             ctx.out,
             "X86_STORE_{size_suffix}({dst_ea}, {pop}(ctx, base));"

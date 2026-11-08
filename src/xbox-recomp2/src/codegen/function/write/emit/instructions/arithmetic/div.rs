@@ -21,7 +21,7 @@ pub(super) fn write_divide(ctx: &mut Emitter<'_>, helper: &str) {
         && !segment_equals(op, Register::GS)
         && ctx.insn.instruction().address_width == 32
     {
-        format!("X86_LOAD_{}({})", operand_size_name(size), ea(op))
+        format!("X86_LOAD_{}({})", operand_size_name(size), ctx.ea(op))
     } else {
         return ctx.missing_form();
     };

@@ -1930,7 +1930,7 @@ X86_FORCEINLINE void X86_OUT32(X86Context& __restrict, uint16_t, uint32_t) {}
 
 // On x86, lock cmpxchg is a full barrier, so 'relaxed' is enough.
 template<typename T>
-X86_FORCEINLINE bool X86_ATOMIC_CMPXCHG(uint8_t* base, uint32_t addr, T& expected, T desired)
+X86_FORCEINLINE bool X86_ATOMIC_CMPXCHG(uint8_t* base, uintptr_t addr, T& expected, T desired)
 {
 #if defined(X86_HOST_X86)
     auto* ptr = reinterpret_cast<volatile std::atomic<T>*>(base + addr);
@@ -2770,7 +2770,7 @@ X86_FORCEINLINE void X86_SAR32(uint32_t& dst, const uint8_t count, X86Context& c
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SAR8_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SAR8_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
@@ -2780,7 +2780,7 @@ X86_FORCEINLINE void X86_SAR8_MEM(uint32_t addr, const uint8_t count, X86Context
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SAR16_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SAR16_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -2790,7 +2790,7 @@ X86_FORCEINLINE void X86_SAR16_MEM(uint32_t addr, const uint8_t count, X86Contex
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SAR32_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SAR32_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -2809,7 +2809,7 @@ X86_FORCEINLINE void X86_SHR8(uint8_t& dst, const uint8_t count, X86Context& ctx
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHR8_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHR8_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
@@ -2829,7 +2829,7 @@ X86_FORCEINLINE void X86_SHR16(uint16_t& dst, const uint8_t count, X86Context& c
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHR16_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHR16_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -2848,7 +2848,7 @@ X86_FORCEINLINE void X86_SHR32(uint32_t& dst, const uint8_t count, X86Context& c
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHR32_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHR32_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -2867,7 +2867,7 @@ X86_FORCEINLINE void X86_SHL8(uint8_t& dst, const uint8_t count, X86Context& ctx
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHL8_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHL8_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
@@ -2886,7 +2886,7 @@ X86_FORCEINLINE void X86_SHL16(uint16_t& dst, const uint8_t count, X86Context& c
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHL16_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHL16_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -2905,7 +2905,7 @@ X86_FORCEINLINE void X86_SHL32(uint32_t& dst, const uint8_t count, X86Context& c
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHL32_MEM(uint32_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHL32_MEM(uintptr_t addr, const uint8_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -2923,7 +2923,7 @@ X86_FORCEINLINE void X86_SUB32(uint32_t& dst, uint32_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SUB32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SUB32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
     uint32_t res = orig - src;
@@ -2948,7 +2948,7 @@ X86_FORCEINLINE void X86_SUB16(uint16_t& dst, uint16_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SUB16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SUB16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
     uint16_t res = orig - src;
@@ -2973,7 +2973,7 @@ X86_FORCEINLINE void X86_SUB8(uint8_t& dst, uint8_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SUB8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SUB8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
     uint8_t res = orig - src;
@@ -2990,7 +2990,7 @@ X86_FORCEINLINE void X86_ADD32(uint32_t& dst, uint32_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADD32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADD32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
     uint32_t res = orig + src;
@@ -3015,7 +3015,7 @@ X86_FORCEINLINE void X86_ADD16(uint16_t& dst, uint16_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADD16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADD16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
     uint16_t res = orig + src;
@@ -3041,7 +3041,7 @@ X86_FORCEINLINE void X86_ADD8(uint8_t& dst, uint8_t src, X86Context& ctx)
 
 // mem destination, need base parameter for store macro.
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADD8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADD8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
     uint8_t res = orig + src;
@@ -3058,7 +3058,7 @@ X86_FORCEINLINE void X86_INC32(uint32_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_INC32_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_INC32_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
     uint32_t res = orig + 1;
@@ -3083,7 +3083,7 @@ X86_FORCEINLINE void X86_INC16(uint16_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_INC16_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_INC16_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
     uint16_t res = orig + 1;
@@ -3108,7 +3108,7 @@ X86_FORCEINLINE void X86_INC8(uint8_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_INC8_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_INC8_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
     uint8_t res = orig + 1;
@@ -3125,7 +3125,7 @@ X86_FORCEINLINE void X86_DEC32(uint32_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_DEC32_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_DEC32_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
     uint32_t res = orig - 1;
@@ -3150,7 +3150,7 @@ X86_FORCEINLINE void X86_DEC16(uint16_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_DEC16_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_DEC16_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
     uint16_t res = orig - 1;
@@ -3175,7 +3175,7 @@ X86_FORCEINLINE void X86_DEC8(uint8_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_DEC8_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_DEC8_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
     uint8_t res = orig - 1;
@@ -3192,7 +3192,7 @@ X86_FORCEINLINE void X86_NEG_U32(uint32_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_NEG_U32_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_NEG_U32_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
     uint32_t res = -orig;
@@ -3217,7 +3217,7 @@ X86_FORCEINLINE void X86_NEG_U16(uint16_t &dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_NEG_U16_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_NEG_U16_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
     uint16_t res = -orig;
@@ -3242,7 +3242,7 @@ X86_FORCEINLINE void X86_NEG_U8(uint8_t& dst, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_NEG_U8_MEM(uint32_t addr, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_NEG_U8_MEM(uintptr_t addr, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
     uint8_t res = -orig;
@@ -3353,7 +3353,7 @@ X86_FORCEINLINE void X86_IMUL_U32(uint32_t& dst, uint32_t lhs, uint32_t rhs, X86
 #define X86_MAXPS(dst, src) ((dst).reg = _mm_max_ps((dst).reg, (src)))
 
 template<bool Volatile = true>
-inline void X86_CVTSS2SI_MEM(uint32_t addr, uint32_t &dst, uint8_t* base, bool mm_cvttss_si32)
+inline void X86_CVTSS2SI_MEM(uintptr_t addr, uint32_t &dst, uint8_t* base, bool mm_cvttss_si32)
 {
     const __m128 value = _mm_set_ss(X86_LOAD_AS(float, Volatile, addr));
     if (mm_cvttss_si32)
@@ -3365,7 +3365,7 @@ inline void X86_CVTSS2SI_MEM(uint32_t addr, uint32_t &dst, uint8_t* base, bool m
 // --- Bitwise MEM helpers ---
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_AND32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_AND32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t temp = X86_LOAD_AS(uint32_t, Volatile, addr);
     temp &= src;
@@ -3374,7 +3374,7 @@ X86_FORCEINLINE void X86_AND32_MEM(uint32_t addr, uint32_t src, X86Context& __re
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_AND16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_AND16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t temp = X86_LOAD_AS(uint16_t, Volatile, addr);
     temp &= src;
@@ -3383,7 +3383,7 @@ X86_FORCEINLINE void X86_AND16_MEM(uint32_t addr, uint16_t src, X86Context& __re
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_AND8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_AND8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t temp = X86_LOAD_AS(uint8_t, Volatile, addr);
     temp &= src;
@@ -3392,7 +3392,7 @@ X86_FORCEINLINE void X86_AND8_MEM(uint32_t addr, uint8_t src, X86Context& __rest
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_OR32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_OR32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t temp = X86_LOAD_AS(uint32_t, Volatile, addr);
     temp |= src;
@@ -3401,7 +3401,7 @@ X86_FORCEINLINE void X86_OR32_MEM(uint32_t addr, uint32_t src, X86Context& __res
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_OR16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_OR16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t temp = X86_LOAD_AS(uint16_t, Volatile, addr);
     temp |= src;
@@ -3410,7 +3410,7 @@ X86_FORCEINLINE void X86_OR16_MEM(uint32_t addr, uint16_t src, X86Context& __res
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_OR8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_OR8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t temp = X86_LOAD_AS(uint8_t, Volatile, addr);
     temp |= src;
@@ -3419,7 +3419,7 @@ X86_FORCEINLINE void X86_OR8_MEM(uint32_t addr, uint8_t src, X86Context& __restr
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_XOR32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XOR32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t temp = X86_LOAD_AS(uint32_t, Volatile, addr);
     temp ^= src;
@@ -3428,7 +3428,7 @@ X86_FORCEINLINE void X86_XOR32_MEM(uint32_t addr, uint32_t src, X86Context& __re
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_XOR16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XOR16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t temp = X86_LOAD_AS(uint16_t, Volatile, addr);
     temp ^= src;
@@ -3437,7 +3437,7 @@ X86_FORCEINLINE void X86_XOR16_MEM(uint32_t addr, uint16_t src, X86Context& __re
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_XOR8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XOR8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t temp = X86_LOAD_AS(uint8_t, Volatile, addr);
     temp ^= src;
@@ -3480,7 +3480,7 @@ X86_FORCEINLINE void X86_ADC32(uint32_t& dst, uint32_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADC32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADC32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -3512,7 +3512,7 @@ X86_FORCEINLINE void X86_ADC16(uint16_t& dst, uint16_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADC16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADC16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -3544,7 +3544,7 @@ X86_FORCEINLINE void X86_ADC8(uint8_t& dst, uint8_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_ADC8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ADC8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
@@ -3588,7 +3588,7 @@ X86_FORCEINLINE void X86_SBB32(uint32_t& dst, uint32_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SBB32_MEM(uint32_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SBB32_MEM(uintptr_t addr, uint32_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -3620,7 +3620,7 @@ X86_FORCEINLINE void X86_SBB16(uint16_t& dst, uint16_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SBB16_MEM(uint32_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SBB16_MEM(uintptr_t addr, uint16_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -3652,7 +3652,7 @@ X86_FORCEINLINE void X86_SBB8(uint8_t& dst, uint8_t src, X86Context& ctx)
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SBB8_MEM(uint32_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SBB8_MEM(uintptr_t addr, uint8_t src, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t carry = (ctx.eflags.common & X86EFlags::CF) ? 1 : 0;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);
@@ -3723,21 +3723,21 @@ inline void X86_XCHG_REG(T& a, T& b)
 // --- RCR MEM helpers ---
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_RCR32_MEM(uint32_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_RCR32_MEM(uintptr_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t temp = X86_LOAD_AS(uint32_t, Volatile, addr);
     X86_STORE_AS(uint32_t, Volatile, addr, X86_RCR32(temp, shift, ctx.eflags));
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_RCR16_MEM(uint32_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_RCR16_MEM(uintptr_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
 {
     uint16_t temp = X86_LOAD_AS(uint16_t, Volatile, addr);
     X86_STORE_AS(uint16_t, Volatile, addr, X86_RCR16(temp, shift, ctx.eflags));
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_RCR8_MEM(uint32_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_RCR8_MEM(uintptr_t addr, uint8_t shift, X86Context& __restrict ctx, uint8_t* base)
 {
     uint8_t temp = X86_LOAD_AS(uint8_t, Volatile, addr);
     X86_STORE_AS(uint8_t, Volatile, addr, X86_RCR8(temp, shift, ctx.eflags));
@@ -3770,7 +3770,7 @@ X86_FORCEINLINE void X86_ROL32(uint32_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROL32_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROL32_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint32_t result = x86_rotl<uint32_t>(X86_LOAD_AS(uint32_t, Volatile, addr), n);
@@ -3786,7 +3786,7 @@ X86_FORCEINLINE void X86_ROL16(uint16_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROL16_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROL16_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint16_t result = x86_rotl<uint16_t>(X86_LOAD_AS(uint16_t, Volatile, addr), n);
@@ -3802,7 +3802,7 @@ X86_FORCEINLINE void X86_ROL8(uint8_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROL8_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROL8_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint8_t result = x86_rotl<uint8_t>(X86_LOAD_AS(uint8_t, Volatile, addr), n);
@@ -3820,7 +3820,7 @@ X86_FORCEINLINE void X86_ROR32(uint32_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROR32_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROR32_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint32_t result = x86_rotr<uint32_t>(X86_LOAD_AS(uint32_t, Volatile, addr), n);
@@ -3836,7 +3836,7 @@ X86_FORCEINLINE void X86_ROR16(uint16_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROR16_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROR16_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint16_t result = x86_rotr<uint16_t>(X86_LOAD_AS(uint16_t, Volatile, addr), n);
@@ -3852,7 +3852,7 @@ X86_FORCEINLINE void X86_ROR8(uint8_t& dst, uint32_t count, X86Context& ctx)
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_ROR8_MEM(uint32_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_ROR8_MEM(uintptr_t addr, uint32_t count, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t n = count & 0x1F;
     const uint8_t result = x86_rotr<uint8_t>(X86_LOAD_AS(uint8_t, Volatile, addr), n);
@@ -3874,7 +3874,7 @@ X86_FORCEINLINE void X86_SHLD32(uint32_t& dst, uint32_t src, uint32_t raw_count,
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHLD32_MEM(uint32_t addr, uint32_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHLD32_MEM(uintptr_t addr, uint32_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t count = raw_count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -3895,7 +3895,7 @@ X86_FORCEINLINE void X86_SHLD16(uint16_t& dst, uint16_t src, uint32_t raw_count,
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHLD16_MEM(uint32_t addr, uint16_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHLD16_MEM(uintptr_t addr, uint16_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t count = raw_count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -3918,7 +3918,7 @@ X86_FORCEINLINE void X86_SHRD32(uint32_t& dst, uint32_t src, uint32_t raw_count,
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHRD32_MEM(uint32_t addr, uint32_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHRD32_MEM(uintptr_t addr, uint32_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t count = raw_count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -3939,7 +3939,7 @@ X86_FORCEINLINE void X86_SHRD16(uint16_t& dst, uint16_t src, uint32_t raw_count,
 }
 
 template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
-X86_FORCEINLINE void X86_SHRD16_MEM(uint32_t addr, uint16_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_SHRD16_MEM(uintptr_t addr, uint16_t src, uint32_t raw_count, X86Context& __restrict ctx, uint8_t* base)
 {
     uint32_t count = raw_count & 0x1F;
     uint32_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -3949,7 +3949,7 @@ X86_FORCEINLINE void X86_SHRD16_MEM(uint32_t addr, uint16_t src, uint32_t raw_co
 }
 
 // --- CMPXCHG helpers ---
-X86_FORCEINLINE void X86_CMPXCHG32_MEM(uint32_t addr, uint32_t src_val, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_CMPXCHG32_MEM(uintptr_t addr, uint32_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t acc = ctx.eax.u32;
     uint32_t dest = acc;
@@ -3974,7 +3974,7 @@ X86_FORCEINLINE void X86_CMPXCHG32(uint32_t& current, uint32_t src_val, X86Conte
     }
 }
 
-X86_FORCEINLINE void X86_CMPXCHG16_MEM(uint32_t addr, uint16_t src_val, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_CMPXCHG16_MEM(uintptr_t addr, uint16_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint16_t acc = ctx.eax.u16;
     uint16_t dest = acc;
@@ -3999,7 +3999,7 @@ X86_FORCEINLINE void X86_CMPXCHG16(uint16_t& current, uint16_t src_val, X86Conte
     }
 }
 
-X86_FORCEINLINE void X86_CMPXCHG8_MEM(uint32_t addr, uint8_t src_val, X86Context& __restrict ctx, uint8_t* base)
+X86_FORCEINLINE void X86_CMPXCHG8_MEM(uintptr_t addr, uint8_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint8_t acc = ctx.eax.u8_lo;
     uint8_t dest = acc;
@@ -4025,7 +4025,7 @@ X86_FORCEINLINE void X86_CMPXCHG8(uint8_t& current, uint8_t src_val, X86Context&
 }
 
 // --- XADD helpers ---
-X86_FORCEINLINE void X86_XADD32_ATOMIC(uint32_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD32_ATOMIC(uintptr_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
 {
     uint32_t add = src;
     uint32_t orig = X86_ATOMIC_XADD_U32(addr, add);
@@ -4034,7 +4034,7 @@ X86_FORCEINLINE void X86_XADD32_ATOMIC(uint32_t addr, uint32_t& src, X86Context&
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_XADD32_MEM(uint32_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD32_MEM(uintptr_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
 {
     uint32_t add = src;
     uint32_t orig = X86_LOAD_AS(uint32_t, Volatile, addr);
@@ -4044,7 +4044,7 @@ X86_FORCEINLINE void X86_XADD32_MEM(uint32_t addr, uint32_t& src, X86Context& ct
     ctx.eflags.update_flags_add_U32(orig, add, res);
 }
 
-X86_FORCEINLINE void X86_XADD16_ATOMIC(uint32_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD16_ATOMIC(uintptr_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
 {
     uint16_t add = src;
     uint16_t orig = X86_ATOMIC_XADD_U16(addr, add);
@@ -4053,7 +4053,7 @@ X86_FORCEINLINE void X86_XADD16_ATOMIC(uint32_t addr, uint16_t& src, X86Context&
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_XADD16_MEM(uint32_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD16_MEM(uintptr_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
 {
     uint16_t add = src;
     uint16_t orig = X86_LOAD_AS(uint16_t, Volatile, addr);
@@ -4063,7 +4063,7 @@ X86_FORCEINLINE void X86_XADD16_MEM(uint32_t addr, uint16_t& src, X86Context& ct
     ctx.eflags.update_flags_add_U16(orig, add, res);
 }
 
-X86_FORCEINLINE void X86_XADD8_ATOMIC(uint32_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD8_ATOMIC(uintptr_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
 {
     uint8_t add = src;
     uint8_t orig = X86_ATOMIC_XADD_U8(addr, add);
@@ -4072,7 +4072,7 @@ X86_FORCEINLINE void X86_XADD8_ATOMIC(uint32_t addr, uint8_t& src, X86Context& c
 }
 
 template<bool Volatile = true>
-X86_FORCEINLINE void X86_XADD8_MEM(uint32_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
+X86_FORCEINLINE void X86_XADD8_MEM(uintptr_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
 {
     uint8_t add = src;
     uint8_t orig = X86_LOAD_AS(uint8_t, Volatile, addr);

@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         // movlps xmm, [mem]
         (Some(reg), None, None, Some(_)) if is_xmm0_to_7(reg) => {
             let reg = xmm_index(reg);
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             // Legacy moves allow unaligned memory on every host.
             cpp!(
                 ctx.out,
@@ -23,7 +23,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         // movlps [mem], xmm
         (None, Some(_), Some(reg), None) if is_xmm0_to_7(reg) => {
             let reg = xmm_index(reg);
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             cpp!(
                 ctx.out,
                 "{{ typedef uint64_t UnalignedU64 __attribute__((aligned(1))); *reinterpret_cast<volatile UnalignedU64*>(base + ({addr})) = ctx.xmm[{reg}].u64[0]; }}"

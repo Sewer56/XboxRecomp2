@@ -26,7 +26,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             emit_mmx_shift(ctx, &dst);
         } else if memory(src).is_some() {
             // Memory operand (use bottom 64 bits)
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(ctx.out, "uint64_t shift_val_{base} = X86_MMX_LOAD({addr});");
             emit_mmx_shift(ctx, &dst);
         } else {
@@ -48,7 +48,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             let count = immediate(src).unwrap().value;
             emit_xmm_shift(ctx, dst_idx, &format!("_mm_set_epi64x(0, {count})"));
         } else if memory(src).is_some() {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             let count =
                 format!("_mm_loadl_epi64(reinterpret_cast<const __m128i*>(base + ({addr})))");
             emit_xmm_shift(ctx, dst_idx, &count);

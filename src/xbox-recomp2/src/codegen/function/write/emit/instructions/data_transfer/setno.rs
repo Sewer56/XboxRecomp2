@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         let dst_str = get_x86_reg(register(dst).unwrap());
         cpp!(ctx.out, "{dst_str} = {cond};");
     } else if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(ctx.out, "X86_STORE_U8({dst_ea}, {cond});");
     }
 }

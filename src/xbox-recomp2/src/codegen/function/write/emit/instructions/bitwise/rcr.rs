@@ -24,7 +24,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             "{dst_str} = X86_RCR{size}({dst_str}, {shift_expr}, ctx.eflags);"
         );
     } else if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(
             ctx.out,
             "X86_RCR{size}_MEM({dst_ea}, {shift_expr}, ctx, base);"

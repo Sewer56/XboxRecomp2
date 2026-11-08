@@ -35,7 +35,7 @@ fn operand(ctx: &Emitter<'_>, operand: &DecodedOperand) -> String {
     }
 
     let suffix = operand_size_name(ctx.insn.operands()[0].size);
-    format_operand(operand, suffix)
+    ctx.format_operand(operand, suffix)
 }
 
 fn platform_expr(ctx: &Emitter<'_>, operand: &DecodedOperand) -> Option<String> {

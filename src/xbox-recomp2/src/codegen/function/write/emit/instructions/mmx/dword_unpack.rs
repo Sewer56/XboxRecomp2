@@ -9,7 +9,7 @@ pub(super) fn emit(ctx: &mut Emitter<'_>, load: &str, result: &str) {
     let src = &operands[1];
     let source = match (register(src), memory(src)) {
         (Some(reg), _) if is_mm0_to_7(reg) => ctx.mmx_reg(mmx_index(reg)),
-        (None, Some(_)) => format!("{load}({})", ea(src)),
+        (None, Some(_)) => format!("{load}({})", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
 

@@ -16,7 +16,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             cpp!(ctx.out, "{dst_reg} = _mm_cvtsi32_ss({dst_reg}, {src_reg});");
         }
         (None, Some(_)) => {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(
                 ctx.out,
                 "{dst_reg} = _mm_cvtsi32_ss({dst_reg}, (int32_t)X86_LOAD_U32({addr}));"

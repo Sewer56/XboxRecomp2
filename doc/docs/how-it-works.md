@@ -184,10 +184,14 @@ plain_sse_memory = true
 #              Stops game from crashing where real HW might have crashed.
 lazy_cmov_load = true
 
-# Don't wrap STOS addresses around at 4 GB.
-# Side effect: Stores that wrap around the 4 GB boundary are not handled correctly.
-#              Rarely an issue.
-unwrapped_string_addresses = true
+# Use native word size for guest addresses.
+# e.g. in `[esi+0x10]` treat 'esi' as `64-bit` on 64-bit systems.
+# Side effect: Usually safe to use, just beware this will break 64-bit wraps.
+#              (e.g. `[eax-4]` with `eax = 0`) would underflow and produce wrong result.
+#              Xbox compiler would never emit this though.
+#
+#              (On Xbox, that's kernel space, you can't read it!)
+native_sized_addresses = true
 
 # Assume calls never pass results in eflags.
 # Side effect: Breaks hand-written asm that does this. (Compilers never do this.)

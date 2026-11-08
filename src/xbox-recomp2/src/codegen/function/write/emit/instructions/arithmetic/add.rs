@@ -16,7 +16,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let src_str = if immediate(src).is_some() {
         (immediate(src).unwrap().value as u32 as i32).to_string()
     } else if memory(src).is_some() {
-        format!("X86_LOAD_{size_suffix}({})", ea(src))
+        format!("X86_LOAD_{size_suffix}({})", ctx.ea(src))
     } else if let Some(reg) = register(src) {
         get_x86_reg(reg)
     } else {
@@ -34,7 +34,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             );
         }
         8 | 16 | 32 if memory(dst).is_some() => {
-            let dst_ea = ea(dst);
+            let dst_ea = ctx.ea(dst);
             cpp!(
                 ctx.out,
                 "X86_ADD{size}_MEM{memory_flags}({dst_ea}, {src_str}, ctx, base);"

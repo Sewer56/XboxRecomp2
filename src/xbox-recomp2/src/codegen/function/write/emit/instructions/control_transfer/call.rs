@@ -60,7 +60,7 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, call: &Ca
             }
         } else {
             // Indirect call (memory operand)
-            let target_ea = ea(&operands[0]);
+            let target_ea = ctx.ea(&operands[0]);
             cpp!(
                 ctx.out,
                 "

@@ -12,7 +12,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if let Some(src_idx) = xmm_register(src) {
         cpp!(ctx.out, "X86_SHUFPS({dst_idx}, {src_idx}, {value});");
     } else if memory(src).is_some() {
-        let addr = ea(src);
+        let addr = ctx.ea(src);
         let prefix = packed_prefix(ctx);
         cpp!(
             ctx.out,

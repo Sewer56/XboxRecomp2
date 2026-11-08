@@ -12,7 +12,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(src).is_none() {
         return ctx.missing_form();
     }
-    let addr = ea(src);
+    let addr = ctx.ea(src);
     let base = ctx.base.get();
     // Intel's manual leaves C0, C2 and C3 undefined after FIDIV, so we keep them.
     cpp!(

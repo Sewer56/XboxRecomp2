@@ -386,8 +386,8 @@ mod tests {
         ],
         "// dec [esi]
          {
-         const uint32_t result = X86_LOAD_U32(ctx.esi.u32) - 1;
-         X86_STORE_U32(ctx.esi.u32, result);
+         const uint32_t result = X86_LOAD_U32(static_cast<uintptr_t>(ctx.esi.u32)) - 1;
+         X86_STORE_U32(static_cast<uintptr_t>(ctx.esi.u32), result);
          // jz 0x00001004
          if (result == 0) goto loc_1004;
          }",

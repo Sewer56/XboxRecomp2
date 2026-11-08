@@ -22,7 +22,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let src = &operands[1];
     let source = match (xmm_register(src), memory(src)) {
         (Some(src_reg), _) => format!("ctx.xmm[{src_reg}].reg"),
-        (None, Some(_)) => format!("_mm_set_ss(X86_LOAD_F32({}))", ea(src)),
+        (None, Some(_)) => format!("_mm_set_ss(X86_LOAD_F32({}))", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
     cpp!(

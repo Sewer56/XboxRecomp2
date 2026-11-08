@@ -33,7 +33,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             );
         }
         8 | 16 | 32 if memory(dst).is_some() => {
-            let dst_ea = ea(dst);
+            let dst_ea = ctx.ea(dst);
             cpp!(
                 ctx.out,
                 "X86_SHL{size}_MEM{memory_flags}({dst_ea}, {count_str}, ctx, base);"

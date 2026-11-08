@@ -27,7 +27,7 @@ fn emit_mmx(ctx: &mut Emitter<'_>, dst_idx: i64, src: &DecodedOperand) {
     // Register and memory counts use all 64 bits.
     let count = match (register(src), memory(src)) {
         (Some(reg), _) if is_mm0_to_7(reg) => ctx.mmx_reg(mmx_index(reg)),
-        (None, Some(_)) => format!("X86_LOAD_U64({})", ea(src)),
+        (None, Some(_)) => format!("X86_LOAD_U64({})", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
     cpp!(ctx.out, "{dst} = X86_PSRLQ({dst}, {count});");
@@ -44,7 +44,7 @@ fn emit_xmm(ctx: &mut Emitter<'_>, dst_idx: i64, src: &DecodedOperand) {
         // The count is the low 64 bits, but the instruction reads all 128.
         (None, Some(_), None) => format!(
             "_mm_srl_epi64({dst}, _mm_loadu_si128(reinterpret_cast<const __m128i*>(base + ({}))))",
-            ea(src)
+            ctx.ea(src)
         ),
         _ => return ctx.missing_form(),
     };

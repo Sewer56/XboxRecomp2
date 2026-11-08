@@ -22,13 +22,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
     } else if memory(&operands[0]).is_some() && matches!(operands[0].size, 32 | 64 | 80) {
         if operands[0].size == 32 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "X86_STORE_F32({addr}, {fpu}.st0());");
         } else if operands[0].size == 64 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "X86_STORE_F64({addr}, {fpu}.st0());");
         } else if operands[0].size == 80 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "X86_STORE_F80({addr}, {fpu}.st0());");
         }
 

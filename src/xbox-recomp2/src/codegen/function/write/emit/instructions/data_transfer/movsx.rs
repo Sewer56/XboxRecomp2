@@ -47,7 +47,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     } else if memory(src).is_some() {
         //Handle memory source with sign extension
         let dst_reg = register(dst).unwrap();
-        let src_ea = ea(src);
+        let src_ea = ctx.ea(src);
 
         if src.size == 8 {
             let dst_type = if dst.size == 16 { "int16_t" } else { "int32_t" }; //destination type

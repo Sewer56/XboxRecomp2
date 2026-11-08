@@ -14,7 +14,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(&operands[0]).is_none() {
         return ctx.missing_form();
     }
-    let addr = ea(&operands[0]);
+    let addr = ctx.ea(&operands[0]);
     let checked = stack_template_argument(ctx);
     // Intel's manual leaves C0, C2 and C3 undefined after FILD, so we keep them.
     cpp!(

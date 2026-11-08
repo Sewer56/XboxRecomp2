@@ -8,7 +8,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if let Some(dst_reg) = register(dst).filter(|reg| is_mm0_to_7(*reg) || is_xmm0_to_7(*reg)) {
         let value = match (register(src), memory(src)) {
             (Some(reg), _) if reg.class() == RegisterClass::GPR32 => get_x86_reg(reg),
-            (None, Some(_)) => format!("X86_LOAD_U32({})", ea(src)),
+            (None, Some(_)) => format!("X86_LOAD_U32({})", ctx.ea(src)),
             _ => return ctx.missing_form(),
         };
         if is_mm0_to_7(dst_reg) {
@@ -37,7 +37,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             cpp!(ctx.out, "{dst_str} = {value};");
         }
         (None, Some(_)) => {
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             cpp!(ctx.out, "X86_STORE_U32({addr}, {value});");
         }
         _ => ctx.missing_form(),

@@ -23,11 +23,11 @@ pub(super) fn handle_bitwise(
         let src_str = if let Some(imm) = immediate(src) {
             format!("{:#x}", mask_imm(size_suffix, imm.value))
         } else {
-            format_operand(src, size_suffix)
+            ctx.format_operand(src, size_suffix)
         };
 
         let size = dst.size;
-        let dst_addr = ea(dst);
+        let dst_addr = ctx.ea(dst);
         cpp!(
             ctx.out,
             "X86_{helper_prefix}{size}_MEM{memory_flags}({dst_addr}, {src_str}, ctx, base);"
@@ -39,22 +39,22 @@ pub(super) fn handle_bitwise(
 
             let src_str = match ctx.route(Register::DS, offset, src.size, false) {
                 MemoryRoute::Expr(expr) => expr.replace("{reg}", &array_subscript(src, src.size)),
-                _ => format_operand(src, size_suffix),
+                _ => ctx.format_operand(src, size_suffix),
             };
 
-            let dst_str = format_operand(dst, size_suffix);
+            let dst_str = ctx.format_operand(dst, size_suffix);
             cpp!(ctx.out, "{dst_str} {op} {src_str};");
         } else if let Some(imm) = immediate(src) {
-            let dst_str = format_operand(dst, size_suffix);
+            let dst_str = ctx.format_operand(dst, size_suffix);
             let value = mask_imm(size_suffix, imm.value);
             cpp!(ctx.out, "{dst_str} {op} {value:#x};");
         } else {
-            let dst_str = format_operand(dst, size_suffix);
-            let src_str = format_operand(src, size_suffix);
+            let dst_str = ctx.format_operand(dst, size_suffix);
+            let src_str = ctx.format_operand(src, size_suffix);
             cpp!(ctx.out, "{dst_str} {op} {src_str};");
         }
 
-        let dst_str = format_operand(dst, size_suffix);
+        let dst_str = ctx.format_operand(dst, size_suffix);
         cpp!(ctx.out, "ctx.eflags.{flag_updater}{flags}({dst_str});");
     }
 }

@@ -16,7 +16,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             super::write_register_op(ctx, register(dest).unwrap(), &helper, "");
         }
         8 | 16 | 32 if memory(dest).is_some() => {
-            let dest_ea = ea(dest);
+            let dest_ea = ctx.ea(dest);
             cpp!(
                 ctx.out,
                 "X86_DEC{size}_MEM{memory_flags}({dest_ea}, ctx, base);"

@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let size = dst.size;
 
     if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         let src_str = get_x86_reg(src);
         cpp!(
             ctx.out,

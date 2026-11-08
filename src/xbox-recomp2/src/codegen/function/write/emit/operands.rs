@@ -51,12 +51,17 @@ pub(crate) fn array_subscript(operand: &DecodedOperand, size: u16) -> String {
 /// decode_memory_operand_no_parentheses([0x12345])      ->  "74565"
 /// ```
 pub(super) fn decode_memory_operand_no_parentheses(mem: &MemoryInfo) -> String {
-    address_expression(mem, false)
+    address_expression(mem, false, false)
 }
 
 /// Returns a memory operand's guest address.
 ///
 /// A displacement on its own is a 32-bit guest address.
+///
+/// # Arguments
+///
+/// - `operand`: operand to read.
+/// - `native`: do `[reg+disp]` math in `uintptr_t`, for `native_sized_addresses`.
 ///
 /// # Returns
 ///
@@ -66,13 +71,14 @@ pub(super) fn decode_memory_operand_no_parentheses(mem: &MemoryInfo) -> String {
 /// # Examples
 ///
 /// ```text
-/// ea([esi+eax*4+8])  ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
-/// ea([ebx-0x10])     ->  "ctx.ebx.u32 - 0x10"
-/// ea([0x12345])      ->  "0x12345"
-/// ea(eax)            ->  ""
+/// ea([esi+eax*4+8], _)   ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
+/// ea([ebx-0x10], false)  ->  "ctx.ebx.u32 - 0x10"
+/// ea([ebx-0x10], true)   ->  "static_cast<uintptr_t>(ctx.ebx.u32) - 0x10"
+/// ea([0x12345], _)       ->  "0x12345"
+/// ea(eax, _)             ->  ""
 /// ```
-pub(in super::super) fn ea(operand: &DecodedOperand) -> String {
-    memory(operand).map_or_else(String::new, |mem| address_expression(mem, true))
+pub(super) fn ea(operand: &DecodedOperand, native: bool) -> String {
+    memory(operand).map_or_else(String::new, |mem| address_expression(mem, true, native))
 }
 
 /// Returns an operand as a C++ expression.
@@ -81,6 +87,7 @@ pub(in super::super) fn ea(operand: &DecodedOperand) -> String {
 ///
 /// - `operand`: operand to read.
 /// - `size_suffix`: `U8`, `U16` or `U32`, used for memory loads.
+/// - `native`: passed to [`ea`] for memory loads.
 ///
 /// # Returns
 ///
@@ -92,13 +99,13 @@ pub(in super::super) fn ea(operand: &DecodedOperand) -> String {
 /// # Examples
 ///
 /// ```text
-/// format_operand(eax, "U32")       ->  "ctx.eax.u32"
-/// format_operand(al, "U8")         ->  "ctx.eax.u8_lo"
-/// format_operand(0x1f, "U32")      ->  "0x1Fu"
-/// format_operand(-1, "U8")         ->  "0xFFu"
-/// format_operand([esi+8], "U32")   ->  "X86_LOAD_U32(ctx.esi.u32 + 0x8)"
+/// format_operand(eax, "U32", _)          ->  "ctx.eax.u32"
+/// format_operand(al, "U8", _)            ->  "ctx.eax.u8_lo"
+/// format_operand(0x1f, "U32", _)         ->  "0x1Fu"
+/// format_operand(-1, "U8", _)            ->  "0xFFu"
+/// format_operand([esi+8], "U32", false)  ->  "X86_LOAD_U32(ctx.esi.u32 + 0x8)"
 /// ```
-pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str) -> String {
+pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str, native: bool) -> String {
     if register(operand).is_some() {
         return get_x86_reg(operand_reg_value(operand));
     }
@@ -111,7 +118,7 @@ pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str) -> Str
         return constant(imm.value, bits);
     }
     if memory(operand).is_some() {
-        return format!("X86_LOAD_{size_suffix}({})", ea(operand));
+        return format!("X86_LOAD_{size_suffix}({})", ea(operand, native));
     }
     String::new()
 }
@@ -199,11 +206,12 @@ pub(super) fn operand_reg_value(operand: &DecodedOperand) -> Register {
 /// # Examples
 ///
 /// ```text
-/// address_expression([esi+eax*4+8], true)   ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
-/// address_expression([esi+eax*4+8], false)  ->  "ctx.esi.u32 + ctx.eax.u32 * 4 + 8"
-/// address_expression([], true)              ->  "0"
+/// address_expression([esi+eax*4+8], true, _)  ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
+/// address_expression([esi+eax*4+8], false, _) ->  "ctx.esi.u32 + ctx.eax.u32 * 4 + 8"
+/// address_expression([esi+8], true, true)     ->  "static_cast<uintptr_t>(ctx.esi.u32) + 0x8"
+/// address_expression([], true, _)             ->  "0"
 /// ```
-fn address_expression(mem: &MemoryInfo, hex: bool) -> String {
+fn address_expression(mem: &MemoryInfo, hex: bool, native: bool) -> String {
     let number = |value: u32| {
         if hex {
             format!("0x{value:x}")
@@ -214,7 +222,14 @@ fn address_expression(mem: &MemoryInfo, hex: bool) -> String {
     let mut result = String::new();
 
     if mem.base != Register::NONE {
-        result.push_str(&get_addr_reg(mem.base));
+        if native && widens(mem) {
+            result.push_str(&format!(
+                "static_cast<uintptr_t>({})",
+                get_addr_reg(mem.base)
+            ));
+        } else {
+            result.push_str(&get_addr_reg(mem.base));
+        }
     }
 
     if mem.index != Register::NONE {
@@ -242,4 +257,9 @@ fn address_expression(mem: &MemoryInfo, hex: bool) -> String {
         result.push('0');
     }
     result
+}
+
+/// Whether `native_sized_addresses` should widen `mem`.
+fn widens(mem: &MemoryInfo) -> bool {
+    mem.index == Register::NONE && mem.base.width(MODE) == 32
 }
