@@ -11,7 +11,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
         // Memory to register (aligned load)
         (Some(dst_reg), None) if memory(src).is_some() => {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             let prefix = packed_prefix(ctx);
             cpp!(
                 ctx.out,
@@ -20,7 +20,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
         // Register to memory (aligned store)
         (None, Some(src_reg)) if memory(dst).is_some() => {
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             let prefix = packed_prefix(ctx);
             cpp!(
                 ctx.out,

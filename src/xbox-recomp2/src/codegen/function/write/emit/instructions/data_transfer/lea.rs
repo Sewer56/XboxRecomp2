@@ -11,7 +11,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let address = if ctx.insn.instruction().address_width == 16 {
         address16(mem)
     } else {
-        ea(&operands[1])
+        ea(&operands[1], false)
     };
     cpp!(ctx.out, "{dst_str} = {address};");
 }

@@ -16,14 +16,14 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         cpp!(ctx.out, "X86_XCHG_REG({op1_str}, {op2_str});");
     } else if register(op1).is_some() && memory(op2).is_some() {
         let op1_str = get_x86_reg(register(op1).unwrap());
-        let op2_ea = ea(op2);
+        let op2_ea = ctx.ea(op2);
         cpp!(
             ctx.out,
             "{op1_str} = X86_ATOMIC_XCHG_{atomic_suffix}({op2_ea}, {op1_str});"
         );
     } else if memory(op1).is_some() && register(op2).is_some() {
         let op2_str = get_x86_reg(register(op2).unwrap());
-        let op1_ea = ea(op1);
+        let op1_ea = ctx.ea(op1);
         cpp!(
             ctx.out,
             "{op2_str} = X86_ATOMIC_XCHG_{atomic_suffix}({op1_ea}, {op2_str});"

@@ -55,13 +55,13 @@ pub(super) fn handle_fcom(ctx: &mut Emitter<'_>, pop_count: i64) {
         if !matches!(operands[0].size, 32 | 64) {
             ctx.missing_form();
         } else if operands[0].size == 32 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(
                 ctx.out,
                 "{fpu}.compare_and_pop{status}(X86_LOAD_F32({addr}), {pop_count});"
             );
         } else {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(
                 ctx.out,
                 "{fpu}.compare_and_pop{status}(X86_LOAD_F64({addr}), {pop_count});"
@@ -115,14 +115,14 @@ pub(super) fn handle_fdivr(ctx: &mut Emitter<'_>) {
         } else if memory(&operands[0]).is_some() {
             match u64::from(operands[0].size) {
                 32 => {
-                    let addr = ea(&operands[0]);
+                    let addr = ctx.ea(&operands[0]);
                     cpp!(
                         ctx.out,
                         "{fpu}.st0() = X87_FDIVR({fpu}.st0(), X86_LOAD_F32({addr}), {fpu}.st0(), 0x{base:X});"
                     );
                 }
                 64 => {
-                    let addr = ea(&operands[0]);
+                    let addr = ctx.ea(&operands[0]);
                     cpp!(
                         ctx.out,
                         "{fpu}.st0() = X87_FDIVR({fpu}.st0(), X86_LOAD_F64({addr}), {fpu}.st0(), 0x{base:X});"
@@ -441,7 +441,7 @@ fn emit_val_double_mem_op(
         return;
     };
 
-    let addr = ea(src);
+    let addr = ctx.ea(src);
     cpp!(
         ctx.out,
         "val_double_0 = {fpu}.st{dest_stack}() {sign} {load}{addr});"

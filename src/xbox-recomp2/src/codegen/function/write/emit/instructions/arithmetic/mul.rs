@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let rhs = if let Some(reg) = register(op) {
         get_x86_reg(reg)
     } else if memory(op).is_some() {
-        format!("X86_LOAD_{size_suffix}({})", ea(op))
+        format!("X86_LOAD_{size_suffix}({})", ctx.ea(op))
     } else {
         return ctx.missing_form();
     };

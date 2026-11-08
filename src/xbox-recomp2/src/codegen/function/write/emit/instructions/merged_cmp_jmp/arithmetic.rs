@@ -51,9 +51,9 @@ pub(super) fn write_compare(ctx: &mut Emitter<'_>, merged: &MergedCmpJmp) -> Int
 
     // const uint32_t old = ctx.eax.u32;
     let mut old = if memory(destination).is_some() {
-        format!("X86_LOAD_{suffix}({})", ea(destination))
+        format!("X86_LOAD_{suffix}({})", ctx.ea(destination))
     } else {
-        format_operand(destination, suffix)
+        ctx.format_operand(destination, suffix)
     };
     if needs_old {
         cpp!(ctx.out, "const {kind} old = {old};");
@@ -104,7 +104,7 @@ fn source(ctx: &Emitter<'_>) -> String {
 /// ```
 fn source_operand(ctx: &Emitter<'_>, operand: &DecodedOperand) -> String {
     platform_source(ctx, operand)
-        .unwrap_or_else(|| format_operand(operand, operand_size_name(operand.size)))
+        .unwrap_or_else(|| ctx.format_operand(operand, operand_size_name(operand.size)))
 }
 
 /// The platform's C++ for a `ds:` source of `and`, `or` or `xor`.
@@ -224,15 +224,16 @@ fn write_result(
     // const uint32_t result = X86_LOAD_U32(ctx.esi.u32) - 1;
     // X86_STORE_U32(ctx.esi.u32, result);
     if memory(destination).is_some() {
+        let address = ctx.ea(destination);
         cpp!(ctx.out, "const {kind} result = {value};");
-        cpp!(ctx.out, "X86_STORE_{suffix}({}, result);", ea(destination));
+        cpp!(ctx.out, "X86_STORE_{suffix}({address}, result);");
         return "result".to_owned();
     }
 
     // ctx.ecx.u32 -= 1;
     let reg = register(destination).expect("register or memory destination");
     write_register(ctx, reg, old, source, value);
-    let written = format_operand(destination, suffix);
+    let written = ctx.format_operand(destination, suffix);
     if !written_later(merged, reg) {
         return written;
     }

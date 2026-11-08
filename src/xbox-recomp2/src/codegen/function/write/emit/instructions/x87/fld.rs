@@ -10,13 +10,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(&operands[0]).is_some() {
         cpp!(ctx.out, "{fpu}.sw &= ~X87FPU::C1;");
         if operands[0].size == 32 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "{fpu}.push{checked}(X86_LOAD_F32({addr}));");
         } else if operands[0].size == 64 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "{fpu}.push{checked}(X86_LOAD_F64({addr}));");
         } else if operands[0].size == 80 {
-            let addr = ea(&operands[0]);
+            let addr = ctx.ea(&operands[0]);
             cpp!(ctx.out, "{fpu}.push{checked}(X86_LOAD_F80({addr}));");
         } else {
             ctx.missing_form();

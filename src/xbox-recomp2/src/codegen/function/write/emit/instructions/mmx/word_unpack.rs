@@ -26,7 +26,7 @@ pub(super) fn emit(ctx: &mut Emitter<'_>, unpack: &WordUnpack) {
 fn emit_mmx(ctx: &mut Emitter<'_>, unpack: &WordUnpack, dst_idx: i64, src: &DecodedOperand) {
     let source = match (register(src), memory(src)) {
         (Some(reg), _) if is_mm0_to_7(reg) => ctx.mmx_reg(mmx_index(reg)),
-        (None, Some(_)) => format!("{}({})", unpack.mmx_load, ea(src)),
+        (None, Some(_)) => format!("{}({})", unpack.mmx_load, ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
     let helper = unpack.mmx_helper;
@@ -41,7 +41,7 @@ fn emit_xmm(ctx: &mut Emitter<'_>, unpack: &WordUnpack, dst_idx: i64, src: &Deco
         }
         (None, Some(_)) => format!(
             "_mm_loadu_si128(reinterpret_cast<const __m128i*>(base + ({})))",
-            ea(src)
+            ctx.ea(src)
         ),
         _ => return ctx.missing_form(),
     };

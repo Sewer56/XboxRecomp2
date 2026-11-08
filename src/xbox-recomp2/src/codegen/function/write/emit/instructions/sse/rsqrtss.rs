@@ -8,7 +8,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     };
     let src = match (xmm_register(&operands[1]), memory(&operands[1])) {
         (Some(src_reg), _) => format!("ctx.xmm[{src_reg}].reg"),
-        (None, Some(_)) => format!("_mm_set_ss(X86_LOAD_F32({}))", ea(&operands[1])),
+        (None, Some(_)) => format!("_mm_set_ss(X86_LOAD_F32({}))", ctx.ea(&operands[1])),
         _ => return ctx.missing_form(),
     };
     cpp!(

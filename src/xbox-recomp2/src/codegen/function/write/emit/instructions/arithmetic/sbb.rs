@@ -17,11 +17,11 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     } else if immediate(src).is_some() {
         constant(immediate(src).unwrap().value, size)
     } else {
-        format!("X86_LOAD_{size_suffix}({})", ea(src))
+        format!("X86_LOAD_{size_suffix}({})", ctx.ea(src))
     };
 
     if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(
             ctx.out,
             "X86_SBB{size}_MEM{memory_flags}({dst_ea}, {src_str}, ctx, base);"

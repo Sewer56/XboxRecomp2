@@ -13,8 +13,8 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     }
     let size_suffix = operand_size_name(src.size);
 
-    let dst_str = format_operand(dst, size_suffix);
-    let src_str = format_operand(src, size_suffix);
+    let dst_str = ctx.format_operand(dst, size_suffix);
+    let src_str = ctx.format_operand(src, size_suffix);
     let size = src.size;
     cpp!(ctx.out, "X86_BSF{size}({dst_str}, {src_str}, ctx);");
 }

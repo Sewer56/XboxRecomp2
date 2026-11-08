@@ -70,7 +70,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
 
         let dst_reg = register(dst).unwrap();
         let dst_type = operand_type_name(dst.size);
-        let memory_addr = ea(src);
+        let memory_addr = ctx.ea(src);
         write_register(
             ctx,
             dst_reg,

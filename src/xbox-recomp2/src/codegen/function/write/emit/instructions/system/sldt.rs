@@ -7,7 +7,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         let dst = get_x86_reg(dst);
         cpp!(ctx.out, "{dst} = 0;");
     } else if memory(&operands[0]).is_some() {
-        let addr = ea(&operands[0]);
+        let addr = ctx.ea(&operands[0]);
         cpp!(ctx.out, "X86_STORE_U16({addr}, 0);");
     }
 }

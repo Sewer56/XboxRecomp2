@@ -11,13 +11,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
         // MOVUPS xmm1, [mem] (XMM ← memory)
         (Some(dst_reg), None) if memory(src).is_some() => {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             let prefix = packed_prefix(ctx);
             cpp!(ctx.out, "ctx.xmm[{dst_reg}].reg = {prefix}LOAD_PS({addr});");
         }
         // MOVUPS [mem], xmm1 (memory ← XMM)
         (None, Some(src_reg)) if memory(dst).is_some() => {
-            let addr = ea(dst);
+            let addr = ctx.ea(dst);
             let prefix = packed_prefix(ctx);
             cpp!(ctx.out, "{prefix}STORE_PS({addr}, ctx.xmm[{src_reg}].reg);");
         }

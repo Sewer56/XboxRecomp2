@@ -56,7 +56,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             if ctx.imports.resolve_thunk(target.get().into()).is_some() {
                 print_function_call_addr(ctx, target, false);
             } else {
-                let target_ea = ea(&operands[0]);
+                let target_ea = ctx.ea(&operands[0]);
                 cpp!(
                     ctx.out,
                     "X86_CALL_INDIRECT_FUNC(X86_LOAD_U32({target_ea}));"

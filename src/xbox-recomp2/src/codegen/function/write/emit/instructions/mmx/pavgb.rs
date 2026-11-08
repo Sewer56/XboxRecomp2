@@ -10,7 +10,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let source = match (register(src), memory(src)) {
         // PAVGB mm1, mm2 (MMX ← MMX)
         (Some(reg), _) if is_mm0_to_7(reg) => ctx.mmx_reg(mmx_index(reg)),
-        (None, Some(_)) => format!("X86_MMX_LOAD({})", ea(src)),
+        (None, Some(_)) => format!("X86_MMX_LOAD({})", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
 

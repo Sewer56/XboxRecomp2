@@ -9,7 +9,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         if register(op).is_some() {
             get_x86_reg(register(op).unwrap())
         } else if memory(op).is_some() {
-            format!("X86_LOAD_{}({})", operand_size_name(op.size), ea(op))
+            format!("X86_LOAD_{}({})", operand_size_name(op.size), ctx.ea(op))
         } else {
             format!("{}", immediate(op).unwrap().value as u32 as i32)
         }

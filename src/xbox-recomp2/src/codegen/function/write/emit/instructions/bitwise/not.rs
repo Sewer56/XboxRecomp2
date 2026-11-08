@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         let op_str = get_x86_reg(register(op).unwrap());
         cpp!(ctx.out, "{op_str} = ~{op_str};");
     } else if memory(op).is_some() {
-        let op_ea = ea(op);
+        let op_ea = ctx.ea(op);
         cpp!(
             ctx.out,
             "X86_STORE_{size_suffix}({op_ea}, ~X86_LOAD_{size_suffix}({op_ea}));"

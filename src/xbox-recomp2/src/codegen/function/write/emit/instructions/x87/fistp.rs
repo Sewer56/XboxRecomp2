@@ -13,7 +13,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     if memory(&operands[0]).is_none() {
         return ctx.missing_form();
     }
-    let addr = ea(&operands[0]);
+    let addr = ctx.ea(&operands[0]);
     let status = if ctx.config.speed_hacks.runs_fast_x87_status() {
         ", false"
     } else {

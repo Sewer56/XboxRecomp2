@@ -18,7 +18,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         cpp!(ctx.out, "{dst} = X86_CVTPS2PI(ctx.xmm[{src_idx}].reg);");
     } else if memory(src).is_some() {
         // The memory form reads 64 bits: two floats.
-        let addr = ea(src);
+        let addr = ctx.ea(src);
         let base = ctx.base.get();
         cpp!(
             ctx.out,

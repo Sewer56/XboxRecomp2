@@ -47,11 +47,11 @@ fn emit_fsubr_memory_first(ctx: &mut Emitter<'_>, src: &DecodedOperand) {
     let fpu = ctx.fpu();
     match u64::from(src.size) {
         32 => {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(ctx.out, "{fpu}.st0() = X86_LOAD_F32({addr}) - {fpu}.st0();");
         }
         64 => {
-            let addr = ea(src);
+            let addr = ctx.ea(src);
             cpp!(ctx.out, "{fpu}.st0() = X86_LOAD_F64({addr}) - {fpu}.st0();");
         }
         _ => unreachable!("checked in handle_fsubr"),
@@ -81,7 +81,7 @@ fn emit_fsubr_register_dst(ctx: &mut Emitter<'_>, dst: &DecodedOperand, src: &De
         match u64::from(src.size) {
             32 => {
                 let dst_idx = st_index(dst_reg);
-                let addr = ea(src);
+                let addr = ctx.ea(src);
                 cpp!(
                     ctx.out,
                     "{fpu}.st{dst_idx}() = X86_LOAD_F32({addr}) - {fpu}.st{dst_idx}();"
@@ -89,7 +89,7 @@ fn emit_fsubr_register_dst(ctx: &mut Emitter<'_>, dst: &DecodedOperand, src: &De
             }
             64 => {
                 let dst_idx = st_index(dst_reg);
-                let addr = ea(src);
+                let addr = ctx.ea(src);
                 cpp!(
                     ctx.out,
                     "{fpu}.st{dst_idx}() = X86_LOAD_F64({addr}) - {fpu}.st{dst_idx}();"
@@ -117,12 +117,12 @@ fn emit_fsubr_single_operand(ctx: &mut Emitter<'_>, src: &DecodedOperand) {
         match u64::from(src.size) {
             32 => {
                 // FSUBR: result = memory_value - ST(0)
-                let addr = ea(src);
+                let addr = ctx.ea(src);
                 cpp!(ctx.out, "{fpu}.st0() = X86_LOAD_F32({addr}) - {fpu}.st0();");
             }
             64 => {
                 // FSUBR: result = memory_value - ST(0)
-                let addr = ea(src);
+                let addr = ctx.ea(src);
                 cpp!(ctx.out, "{fpu}.st0() = X86_LOAD_F64({addr}) - {fpu}.st0();");
             }
             _ => {

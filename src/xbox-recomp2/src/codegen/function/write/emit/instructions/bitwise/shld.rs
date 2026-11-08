@@ -38,7 +38,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             "X86_SHLD{size}{flags}({dst_str}, {src_str}, {count_expr}, ctx);"
         );
     } else if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         let src_str = get_x86_reg(src);
         cpp!(
             ctx.out,

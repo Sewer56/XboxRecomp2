@@ -44,7 +44,7 @@ pub(super) mod setz;
 pub(super) mod xchg;
 
 use super::prelude::{
-    Emitter, Register, RegisterClass, cpp, ea, get_x86_reg, memory, operand_size_name,
+    Emitter, Register, RegisterClass, cpp, get_x86_reg, memory, operand_size_name,
     operand_type_name, register, segment_equals,
 };
 use zydis::{InstructionCategory, MachineMode};
@@ -90,7 +90,7 @@ fn write_cmov(ctx: &mut Emitter<'_>, condition: &str) {
         ctx.missing_form();
         return;
     }
-    let load = format!("X86_LOAD_{}({})", operand_size_name(dst.size), ea(src));
+    let load = format!("X86_LOAD_{}({})", operand_size_name(dst.size), ctx.ea(src));
     if ctx.config.speed_hacks.runs_lazy_cmov_load() {
         cpp!(
             ctx.out,
@@ -121,7 +121,7 @@ fn write_setcc(ctx: &mut Emitter<'_>, condition: &str) {
     if let Some(dst_reg) = register(dst) {
         write_register(ctx, dst_reg, &format!("{condition} ? 1 : 0"));
     } else if memory(dst).is_some() {
-        let dst_ea = ea(dst);
+        let dst_ea = ctx.ea(dst);
         cpp!(ctx.out, "X86_STORE_U8({dst_ea}, {condition} ? 1 : 0);");
     } else {
         ctx.missing_form();

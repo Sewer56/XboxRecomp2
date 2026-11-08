@@ -33,7 +33,7 @@ pub(in super::super) fn compare_operands(ctx: &Emitter<'_>) -> Option<(String, S
     let rhs = if let Some(reg) = register(&operands[1]).filter(|reg| is_xmm0_to_7(*reg)) {
         xmm_f32(reg)
     } else if memory(&operands[1]).is_some() && operands[1].size == 32 {
-        format!("X86_LOAD_F32({})", ea(&operands[1]))
+        format!("X86_LOAD_F32({})", ctx.ea(&operands[1]))
     } else {
         return None;
     };
@@ -61,7 +61,7 @@ pub(super) fn float_s(ctx: &mut Emitter<'_>, sign: &str) {
         // XMM register to XMM register
         (Some(reg), _) if is_xmm0_to_7(reg) => format!("ctx.xmm[{}].reg", xmm_index(reg)),
         (None, Some(_)) if src.size == 128 => {
-            format!("{}LOAD_PS({})", packed_prefix(ctx), ea(src))
+            format!("{}LOAD_PS({})", packed_prefix(ctx), ctx.ea(src))
         }
         _ => return ctx.missing_form(),
     };
@@ -91,7 +91,7 @@ pub(super) fn handle_cvtss2si(ctx: &mut Emitter<'_>) {
             cpp!(ctx.out, "{dst_reg} = (int32_t){intrinsic}({src_reg});");
         }
         (None, Some(_)) => {
-            let src_addr = ea(src);
+            let src_addr = ctx.ea(src);
             cpp!(
                 ctx.out,
                 "X86_CVTSS2SI_MEM({src_addr}, {dst_reg}, base, {ismm_cvttss_si32});"
@@ -114,10 +114,7 @@ pub(super) fn handle_sse_scalar_instruction(ctx: &mut Emitter<'_>, op_symbol: &'
     // Source: XMM register or memory.
     let src_text = match (register(src), memory(src)) {
         (Some(reg), _) if is_xmm0_to_7(reg) => format!("ctx.xmm[{}].reg", xmm_index(reg)),
-        (None, Some(mem)) => format!(
-            "_mm_set_ss(X86_LOAD_F32({}))",
-            decode_memory_operand_no_parentheses(mem)
-        ),
+        (None, Some(_)) => format!("_mm_set_ss(X86_LOAD_F32({}))", ctx.ea(src)),
         _ => return ctx.missing_form(),
     };
     cpp!(ctx.out, "{dest} = {op_symbol}({dest}, {src_text});");
@@ -126,7 +123,7 @@ pub(super) fn handle_sse_scalar_instruction(ctx: &mut Emitter<'_>, op_symbol: &'
 pub(super) fn packed_source(ctx: &Emitter<'_>, src: &DecodedOperand) -> Option<String> {
     match (register(src), memory(src)) {
         (Some(reg), _) if is_xmm0_to_7(reg) => Some(format!("ctx.xmm[{}].reg", xmm_index(reg))),
-        (None, Some(_)) => Some(format!("{}LOAD_PS({})", packed_prefix(ctx), ea(src))),
+        (None, Some(_)) => Some(format!("{}LOAD_PS({})", packed_prefix(ctx), ctx.ea(src))),
         _ => None,
     }
 }

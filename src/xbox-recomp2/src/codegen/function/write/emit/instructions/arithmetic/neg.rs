@@ -14,7 +14,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         let helper = format!("X86_NEG_{size_suffix}");
         super::write_register_op(ctx, reg, &helper, "");
     } else if memory(op).is_some() {
-        let op_ea = ea(op);
+        let op_ea = ctx.ea(op);
         cpp!(
             ctx.out,
             "X86_NEG_{size_suffix}_MEM{memory_flags}({op_ea}, ctx, base);"

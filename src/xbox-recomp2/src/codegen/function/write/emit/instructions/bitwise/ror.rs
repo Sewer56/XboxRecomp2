@@ -17,7 +17,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             let dst_str = get_x86_reg(register(dst).unwrap());
             cpp!(ctx.out, "X86_ROR{size}({dst_str}, {shift_count}, ctx);");
         } else if memory(dst).is_some() {
-            let dst_ea = ea(dst);
+            let dst_ea = ctx.ea(dst);
             cpp!(
                 ctx.out,
                 "X86_ROR{size}_MEM({dst_ea}, {shift_count}, ctx, base);"
@@ -32,7 +32,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             let dst_str = get_x86_reg(register(dst).unwrap());
             cpp!(ctx.out, "X86_ROR{size}({dst_str}, ctx.ecx.u8_lo, ctx);");
         } else if memory(dst).is_some() {
-            let dst_ea = ea(dst);
+            let dst_ea = ctx.ea(dst);
             cpp!(
                 ctx.out,
                 "X86_ROR{size}_MEM({dst_ea}, ctx.ecx.u8_lo, ctx, base);"

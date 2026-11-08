@@ -1,10 +1,10 @@
 //! All the context you need to turn one instruction into C++.
 
-use super::CodeWriter;
+use super::{CodeWriter, operands};
 use crate::analysis::LocalTargets;
 use crate::codegen::function::model::ALL_ARITHMETIC_FLAGS;
 use crate::config::RecompilerConfig;
-use crate::decode::{CpuFlag, Insn};
+use crate::decode::{CpuFlag, DecodedOperand, Insn};
 use crate::executable::{ImportMap, SwitchTable, SymbolTable};
 use crate::platform::{GuestPlatform, MemoryRoute};
 use xbox_recomp2_executable::GuestAddress32;
@@ -157,6 +157,25 @@ impl Emitter<'_> {
         } else {
             format!("<0x{mask:X}>")
         }
+    }
+
+    /// Returns a memory operand's address.
+    ///
+    /// See [`operands::ea`] for more info.
+    pub fn ea(&self, operand: &DecodedOperand) -> String {
+        operands::ea(operand, self.native_addresses())
+    }
+
+    /// Returns an operand as a C++ expression.
+    ///
+    /// See [`operands::format_operand`] for more info.
+    pub fn format_operand(&self, operand: &DecodedOperand, size_suffix: &str) -> String {
+        operands::format_operand(operand, size_suffix, self.native_addresses())
+    }
+
+    /// Does this guest address use host's native word size?
+    pub fn native_addresses(&self) -> bool {
+        self.config.speed_hacks.runs_native_sized_addresses()
     }
 
     /// Marks this operand form as unsupported, so the writer reports it as missing.
