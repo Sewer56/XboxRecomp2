@@ -121,6 +121,7 @@ fn write_body(
     let mut function_state = FunctionState {
         local_targets: model.local_targets(),
         mask_branch_targets: model.mask_branch_targets,
+        ebp_frame: model.ebp_frame,
         ..FunctionState::default()
     };
     for block in &model.blocks {
@@ -399,7 +400,7 @@ fn write_instruction(
         write_missing(context, guest, scratch, out);
         report_failure(state, context.base, guest, false);
     } else {
-        write_code(context, guest, scratch.code.as_str(), out);
+        write_code(context, guest, function_state, scratch.code.as_str(), out);
     }
 
     if guest.last_in_function {
@@ -438,9 +439,15 @@ fn guest_emitter<'a>(
 }
 
 /// Copies `code`, written for `guest`, applying in-C++ rewrites if required.
-fn write_code(context: &GenerationContext<'_>, guest: &GuestOp, code: &str, out: &mut Vec<u8>) {
+fn write_code(
+    context: &GenerationContext<'_>,
+    guest: &GuestOp,
+    function_state: &FunctionState,
+    code: &str,
+    out: &mut Vec<u8>,
+) {
     if context.config.speed_hacks.runs_nonvolatile_stack() {
-        nonvolatile_stack::rewrite(&guest.insn, code, out);
+        nonvolatile_stack::rewrite(&guest.insn, function_state.ebp_frame, code, out);
     } else {
         out.extend_from_slice(code.as_bytes());
     }

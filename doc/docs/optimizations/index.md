@@ -14,6 +14,7 @@ and before being written out as C++.
 | [`x87_lowering`]          | Keeps x87 values in local variables.                | Not built yet |
 | [`fuse_compare_branch`]   | Turns cmp + jump into a plain `if (a < b)`.         | Working       |
 | [`eliminate_dead_flags`]  | Only computes arithmetic flags that are read later. | Working       |
+| [`find_ebp_frames`]       | Finds functions that use EBP as the frame pointer.  | Working       |
 
 ## Helpers
 
@@ -26,4 +27,5 @@ e.g. to track the stack, or find every caller of a function.
 [`x87_lowering`]: x87-lowering.md
 [`eliminate_dead_flags`]: skip-unused-flags.md
 [`fuse_compare_branch`]: merge-compare-and-jump.md
+[`find_ebp_frames`]: find-ebp-frames.md
 [helpers]: helpers/index.md

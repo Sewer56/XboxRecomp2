@@ -9,6 +9,7 @@ use std::io::Write;
 mod eliminate_dead_flags;
 pub(in crate::codegen) mod eliminate_return_slot;
 pub(in crate::codegen) mod eliminate_stack_args;
+mod find_ebp_frames;
 pub(in crate::codegen) mod helpers;
 mod merge_cmp_jmp;
 mod x87_lowering;
@@ -61,5 +62,9 @@ pub(crate) fn run(
         for model in models.iter_mut() {
             x87_lowering::run(model);
         }
+    }
+
+    if switches.runs_find_ebp_frames() {
+        find_ebp_frames::run(models);
     }
 }

@@ -40,6 +40,7 @@ const MACROS: [&str; 18] = [
 /// # Arguments
 ///
 /// - `insn`: e.g. `mov [esp+4], eax`.
+/// - `ebp_frame`: whether `[ebp+N]` is a stack access too.
 /// - `code`: its C++, e.g. `X86_STORE_U32(ctx.esp.u32 + 0x4, ctx.eax.u32);`.
 /// - `out`: output to append to.
 ///
@@ -49,6 +50,10 @@ const MACROS: [&str; 18] = [
 /// // mov [esp+4], eax
 /// X86_STORE_U32(ctx.esp.u32 + 0x4, ctx.eax.u32);       // before
 /// X86_STACK_STORE_U32(ctx.esp.u32 + 0x4, ctx.eax.u32); // after
+///
+/// // mov eax, [ebp+8], with `ebp_frame`
+/// ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 + 0x8);       // before
+/// ctx.eax.u32 = X86_STACK_LOAD_U32(ctx.ebp.u32 + 0x8); // after
 ///
 /// // add [esp+4], eax
 /// X86_ADD32_MEM(ctx.esp.u32 + 0x4, ctx.eax.u32, ctx, base);        // before
@@ -62,8 +67,8 @@ const MACROS: [&str; 18] = [
 /// X86_PUSH(ctx, base, X86_LOAD_U32(ctx.eax.u32 + 0xC));        // before
 /// X86_PUSH<false>(ctx, base, X86_LOAD_U32(ctx.eax.u32 + 0xC)); // after
 /// ```
-pub(super) fn rewrite(insn: &Insn, code: &str, out: &mut Vec<u8>) {
-    let is_esp_relative = is_esp_relative(insn);
+pub(super) fn rewrite(insn: &Insn, ebp_frame: bool, code: &str, out: &mut Vec<u8>) {
+    let on_stack = is_stack_relative(insn, ebp_frame);
 
     let mut rest = code;
     while let Some(start) = next_helper(rest) {
@@ -78,7 +83,7 @@ pub(super) fn rewrite(insn: &Insn, code: &str, out: &mut Vec<u8>) {
         rest = after;
 
         // Write the name, using the `X86_STACK_` version of loads and stores.
-        if is_esp_relative && MACROS.contains(&name) {
+        if on_stack && MACROS.contains(&name) {
             out.extend_from_slice(b"X86_STACK_");
             out.extend_from_slice(&name.as_bytes()["X86_".len()..]);
         } else {
@@ -86,7 +91,7 @@ pub(super) fn rewrite(insn: &Insn, code: &str, out: &mut Vec<u8>) {
         }
 
         // Should we set `Volatile` to false?
-        if !should_clear_volatile(name, is_esp_relative) {
+        if !should_clear_volatile(name, on_stack) {
             continue;
         }
 
@@ -112,25 +117,29 @@ fn next_helper(text: &str) -> Option<usize> {
 }
 
 /// Whether to set `name`'s `Volatile` template parameter to `false`.
-fn should_clear_volatile(name: &str, is_esp_relative: bool) -> bool {
+fn should_clear_volatile(name: &str, on_stack: bool) -> bool {
     match name {
         // keep in sync with x86_context_core.h
         "X86_PUSH" | "X86_POP" | "X86_PUSH16" | "X86_POP16" => true,
-        "save" | "load" => is_esp_relative,
-        _ => is_esp_relative && name.ends_with("_MEM") && !name.starts_with("X86_CMPXCHG"),
+        "save" | "load" => on_stack,
+        _ => on_stack && name.ends_with("_MEM") && !name.starts_with("X86_CMPXCHG"),
     }
 }
 
-/// Whether `insn`'s visible memory operand is ESP-relative.
+/// Whether `insn`'s visible memory operand is a stack access.
 ///
-/// e.g. `push [eax]` isn't: its `[esp]` operand is hidden.
-fn is_esp_relative(insn: &Insn) -> bool {
+/// That's `[esp+N]`, or `[ebp+N]` with `ebp_frame`.
+fn is_stack_relative(insn: &Insn, ebp_frame: bool) -> bool {
     let count = usize::from(insn.instruction().operand_count);
     insn.operands()[..count]
         .iter()
         .filter(|operand| operand.visibility != OperandVisibility::HIDDEN)
         .filter_map(memory)
-        .any(|mem| mem.base == Register::ESP && mem.segment == Register::SS)
+        .any(|mem| {
+            let ebp_slot = ebp_frame && mem.base == Register::EBP && mem.index == Register::NONE;
+            let stack_base = mem.base == Register::ESP || ebp_slot;
+            stack_base && mem.segment == Register::SS
+        })
 }
 
 /// Finds the `save` or `load` in the next `ctx.fpu.save(` or `ctx.fpu.load(`.

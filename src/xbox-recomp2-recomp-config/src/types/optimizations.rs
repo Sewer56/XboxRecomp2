@@ -32,6 +32,9 @@ pub struct Optimizations {
 
     /// Turn cmp + jump into a plain `if (a < b)`.
     pub fuse_compare_branch: bool,
+
+    /// Find functions that use EBP as the frame pointer.
+    pub find_ebp_frames: bool,
 }
 
 impl Optimizations {
@@ -52,6 +55,7 @@ impl Optimizations {
             x87_lowering: false,
             eliminate_dead_flags: false,
             fuse_compare_branch: false,
+            find_ebp_frames: false,
         }
     }
 
@@ -84,6 +88,11 @@ impl Optimizations {
     pub fn runs_eliminate_dead_flags(&self) -> bool {
         self.enabled && self.eliminate_dead_flags
     }
+
+    /// Do we look for functions that use EBP as the frame pointer?
+    pub fn runs_find_ebp_frames(&self) -> bool {
+        self.enabled && self.find_ebp_frames
+    }
 }
 
 impl Default for Optimizations {
@@ -96,6 +105,7 @@ impl Default for Optimizations {
             x87_lowering: true,
             eliminate_dead_flags: true,
             fuse_compare_branch: true,
+            find_ebp_frames: true,
         }
     }
 }
@@ -133,7 +143,8 @@ mod tests {
             Optimizations::runs_trust_callee_returns,
             Optimizations::runs_x87_lowering,
             Optimizations::runs_fuse_compare_branch,
-            Optimizations::runs_eliminate_dead_flags
+            Optimizations::runs_eliminate_dead_flags,
+            Optimizations::runs_find_ebp_frames
         )]
         runs: fn(&Optimizations) -> bool,
         #[case] enabled: bool,
@@ -149,6 +160,7 @@ mod tests {
             x87_lowering: own_switch,
             eliminate_dead_flags: own_switch,
             fuse_compare_branch: own_switch,
+            find_ebp_frames: own_switch,
         };
 
         // Act
