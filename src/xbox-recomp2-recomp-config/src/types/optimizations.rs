@@ -35,6 +35,9 @@ pub struct Optimizations {
 
     /// Find functions that use EBP as the frame pointer.
     pub find_ebp_frames: bool,
+
+    /// Use a 32-bit divide for `idiv` after `cdq`.
+    pub idiv32_after_cdq: bool,
 }
 
 impl Optimizations {
@@ -56,6 +59,7 @@ impl Optimizations {
             eliminate_dead_flags: false,
             fuse_compare_branch: false,
             find_ebp_frames: false,
+            idiv32_after_cdq: false,
         }
     }
 
@@ -93,6 +97,11 @@ impl Optimizations {
     pub fn runs_find_ebp_frames(&self) -> bool {
         self.enabled && self.find_ebp_frames
     }
+
+    /// May `idiv` after `cdq` use a 32-bit divide?
+    pub fn runs_idiv32_after_cdq(&self) -> bool {
+        self.enabled && self.idiv32_after_cdq
+    }
 }
 
 impl Default for Optimizations {
@@ -106,6 +115,7 @@ impl Default for Optimizations {
             eliminate_dead_flags: true,
             fuse_compare_branch: true,
             find_ebp_frames: true,
+            idiv32_after_cdq: true,
         }
     }
 }
@@ -144,7 +154,8 @@ mod tests {
             Optimizations::runs_x87_lowering,
             Optimizations::runs_fuse_compare_branch,
             Optimizations::runs_eliminate_dead_flags,
-            Optimizations::runs_find_ebp_frames
+            Optimizations::runs_find_ebp_frames,
+            Optimizations::runs_idiv32_after_cdq
         )]
         runs: fn(&Optimizations) -> bool,
         #[case] enabled: bool,
@@ -161,6 +172,7 @@ mod tests {
             eliminate_dead_flags: own_switch,
             fuse_compare_branch: own_switch,
             find_ebp_frames: own_switch,
+            idiv32_after_cdq: own_switch,
         };
 
         // Act

@@ -28,6 +28,7 @@ pub(in crate::codegen) fn trusting_ret_n(model: &FunctionModel) -> Option<CallEf
     for op in ops(model) {
         let guest = match op {
             Op::Guest(guest) => guest,
+            Op::CdqIdiv(idiv) => &idiv.guest,
             Op::Call(call) => {
                 // No idea what it does to ebp.
                 keeps_ebp = false;

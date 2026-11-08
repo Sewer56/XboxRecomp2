@@ -164,6 +164,7 @@ fn keeps_frame(op: &Op, after: &[Op], helpers: &HashSet<FunctionAddress>) -> boo
         Op::Guest(guest) => !writes_ebp(guest) || restores_before_ret(guest, after),
         Op::Call(call) => !calls_helper(call, helpers),
         Op::Return(_) => true,
+        Op::CdqIdiv(idiv) => !writes_ebp(&idiv.guest),
         Op::MergedCmpJmp(merged) => {
             let merged_ops = merged.instructions.iter().map(|merged| &merged.guest);
             let mut guests = iter::once(&merged.compare)

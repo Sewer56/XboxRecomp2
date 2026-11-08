@@ -72,6 +72,7 @@ struct OptimizationsSection {
     eliminate_dead_flags: bool,
     fuse_compare_branch: bool,
     find_ebp_frames: bool,
+    idiv32_after_cdq: bool,
 }
 
 /// The `[speed_hacks]` section.
@@ -124,6 +125,7 @@ impl Default for OptimizationsSection {
             eliminate_dead_flags: passes.eliminate_dead_flags,
             fuse_compare_branch: passes.fuse_compare_branch,
             find_ebp_frames: passes.find_ebp_frames,
+            idiv32_after_cdq: passes.idiv32_after_cdq,
         }
     }
 }
@@ -191,6 +193,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             eliminate_dead_flags: raw.optimizations.eliminate_dead_flags,
             fuse_compare_branch: raw.optimizations.fuse_compare_branch,
             find_ebp_frames: raw.optimizations.find_ebp_frames,
+            idiv32_after_cdq: raw.optimizations.idiv32_after_cdq,
         },
         speed_hacks: SpeedHacks {
             enabled: raw.speed_hacks.enable,

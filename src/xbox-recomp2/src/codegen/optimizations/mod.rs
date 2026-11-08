@@ -11,6 +11,7 @@ pub(in crate::codegen) mod eliminate_return_slot;
 pub(in crate::codegen) mod eliminate_stack_args;
 mod find_ebp_frames;
 pub(in crate::codegen) mod helpers;
+mod idiv32_after_cdq;
 mod merge_cmp_jmp;
 mod x87_lowering;
 
@@ -66,5 +67,11 @@ pub(crate) fn run(
 
     if switches.runs_find_ebp_frames() {
         find_ebp_frames::run(models);
+    }
+
+    if switches.runs_idiv32_after_cdq() {
+        for model in models.iter_mut() {
+            idiv32_after_cdq::run(model);
+        }
     }
 }

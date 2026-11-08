@@ -144,6 +144,7 @@ x87_lowering = true             # keep x87 values in C variables
 eliminate_dead_flags = true     # compute only flags later instructions read
 fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
 find_ebp_frames = true          # let nonvolatile_stack cover [ebp+N] where safe
+idiv32_after_cdq = true         # 32-bit divide for `idiv` after `cdq`
 
 # Hacks that sacrifice accuracy for speed. Usually safe.
 # But test your recomp without, before testing with.

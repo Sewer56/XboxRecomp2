@@ -72,6 +72,7 @@ impl<'a> FlagGraph<'a> {
             .flat_map(|block| &block.ops)
             .map(|op| match op {
                 Op::Guest(guest) => EFlagEffects::of(&guest.insn),
+                Op::CdqIdiv(idiv) => EFlagEffects::of(&idiv.guest.insn),
                 Op::MergedCmpJmp(pair) => EFlagEffects::of(&pair.compare.insn),
                 Op::Failed { .. } => EFlagEffects::barrier(),
                 Op::Call(_) | Op::Return(_) => EFlagEffects::none(),

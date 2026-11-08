@@ -250,6 +250,7 @@ fn call_sites(
             Op::Guest(guest) => guest.address,
             Op::Call(call) => call.guest.address,
             Op::Return(ret) => ret.guest.address,
+            Op::CdqIdiv(idiv) => idiv.guest.address,
             Op::MergedCmpJmp(_) => {
                 unreachable!(
                     "Did you do a fucky-wucky with the code?

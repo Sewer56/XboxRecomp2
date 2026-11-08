@@ -105,6 +105,12 @@ impl<'a> FunctionStack<'a> {
                     return_op: None,
                     call_bytes: None,
                 }),
+                Op::CdqIdiv(idiv) => Some(StackInstruction {
+                    instruction: &idiv.guest,
+                    frame: None,
+                    return_op: None,
+                    call_bytes: None,
+                }),
                 // Collect the intrinsics too!
                 Op::Call(call) => Some(StackInstruction {
                     instruction: &call.guest,

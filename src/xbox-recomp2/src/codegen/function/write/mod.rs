@@ -28,7 +28,7 @@ use crate::templates::{
 use core::fmt::Write as _;
 use core::str::from_utf8;
 pub(in crate::codegen) use emit::supports_addressing;
-use emit::{CodeWriter, Emitter, FunctionState, emit_call, emit_return, lookup};
+use emit::{CodeWriter, Emitter, FunctionState, emit_call, emit_cdq_idiv, emit_return, lookup};
 use xbox_recomp2_executable::GuestAddress32;
 
 pub(super) mod emit;
@@ -194,6 +194,18 @@ fn write_block(
                     state,
                     out,
                     |emitter| emit_return(emitter, ret),
+                );
+            }
+            Op::CdqIdiv(idiv) => {
+                write_instruction(
+                    context,
+                    &idiv.guest,
+                    aborts,
+                    function_state,
+                    scratch,
+                    state,
+                    out,
+                    emit_cdq_idiv,
                 );
             }
             Op::MergedCmpJmp(merged) => {

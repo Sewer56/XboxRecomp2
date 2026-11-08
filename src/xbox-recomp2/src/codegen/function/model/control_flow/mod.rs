@@ -96,7 +96,7 @@ impl ControlFlow {
                 match op {
                     Op::Failed { .. } => edges.push(Edge::Unknown),
                     Op::Return(_) => {}
-                    Op::Call(_) => edges.push(next),
+                    Op::Call(_) | Op::CdqIdiv(_) => edges.push(next),
                     Op::MergedCmpJmp(merged) => {
                         for instruction in &merged.instructions {
                             if let MergedInstructionKind::Jump(_) = instruction.kind {
