@@ -32,6 +32,9 @@ pub struct Optimizations {
 
     /// Turn cmp + jump into a plain `if (a < b)`.
     pub fuse_compare_branch: bool,
+
+    /// Use a 32-bit divide for `idiv` right after `cdq`.
+    pub idiv32_after_cdq: bool,
 }
 
 impl Optimizations {
@@ -52,6 +55,7 @@ impl Optimizations {
             x87_lowering: false,
             eliminate_dead_flags: false,
             fuse_compare_branch: false,
+            idiv32_after_cdq: false,
         }
     }
 
@@ -84,6 +88,11 @@ impl Optimizations {
     pub fn runs_eliminate_dead_flags(&self) -> bool {
         self.enabled && self.eliminate_dead_flags
     }
+
+    /// May `idiv` right after `cdq` use a 32-bit divide?
+    pub fn runs_idiv32_after_cdq(&self) -> bool {
+        self.enabled && self.idiv32_after_cdq
+    }
 }
 
 impl Default for Optimizations {
@@ -96,6 +105,7 @@ impl Default for Optimizations {
             x87_lowering: true,
             eliminate_dead_flags: true,
             fuse_compare_branch: true,
+            idiv32_after_cdq: true,
         }
     }
 }
@@ -133,7 +143,8 @@ mod tests {
             Optimizations::runs_trust_callee_returns,
             Optimizations::runs_x87_lowering,
             Optimizations::runs_fuse_compare_branch,
-            Optimizations::runs_eliminate_dead_flags
+            Optimizations::runs_eliminate_dead_flags,
+            Optimizations::runs_idiv32_after_cdq
         )]
         runs: fn(&Optimizations) -> bool,
         #[case] enabled: bool,
@@ -149,6 +160,7 @@ mod tests {
             x87_lowering: own_switch,
             eliminate_dead_flags: own_switch,
             fuse_compare_branch: own_switch,
+            idiv32_after_cdq: own_switch,
         };
 
         // Act

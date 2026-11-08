@@ -71,6 +71,7 @@ struct OptimizationsSection {
     x87_lowering: bool,
     eliminate_dead_flags: bool,
     fuse_compare_branch: bool,
+    idiv32_after_cdq: bool,
 }
 
 /// The `[speed_hacks]` section.
@@ -122,6 +123,7 @@ impl Default for OptimizationsSection {
             x87_lowering: passes.x87_lowering,
             eliminate_dead_flags: passes.eliminate_dead_flags,
             fuse_compare_branch: passes.fuse_compare_branch,
+            idiv32_after_cdq: passes.idiv32_after_cdq,
         }
     }
 }
@@ -188,6 +190,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             x87_lowering: raw.optimizations.x87_lowering,
             eliminate_dead_flags: raw.optimizations.eliminate_dead_flags,
             fuse_compare_branch: raw.optimizations.fuse_compare_branch,
+            idiv32_after_cdq: raw.optimizations.idiv32_after_cdq,
         },
         speed_hacks: SpeedHacks {
             enabled: raw.speed_hacks.enable,

@@ -143,6 +143,7 @@ trust_callee_returns = false    # trust `ret N` to fix up the stack on function 
 x87_lowering = true             # keep x87 values in C variables
 eliminate_dead_flags = true     # compute only flags later instructions read
 fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
+idiv32_after_cdq = true         # 32-bit divide for `idiv` right after `cdq`
 
 # Hacks that sacrifice accuracy for speed. Usually safe.
 # But test your recomp without, before testing with.

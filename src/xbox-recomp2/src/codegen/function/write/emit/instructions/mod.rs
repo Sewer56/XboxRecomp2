@@ -4,6 +4,7 @@
 //! folders by family. [`lookup`] picks the right one for a mnemonic.
 
 use super::Emitter;
+pub(in crate::codegen::function::write) use arithmetic::idiv::emit_after_cdq as emit_cdq_idiv;
 pub(in crate::codegen::function::write) use control_transfer::{
     call::emit as emit_call, ret::emit as emit_return,
 };

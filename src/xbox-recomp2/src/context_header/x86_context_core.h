@@ -2742,6 +2742,20 @@ X86_FORCEINLINE void X86_IDIV32(uint32_t divisor, X86Context& __restrict ctx)
     ctx.edx.u32 = static_cast<uint32_t>(static_cast<int32_t>(remainder));
 }
 
+// IDIV r/m32 right after CDQ, so we can assume EDX is just EAX's sign.
+X86_FORCEINLINE void X86_IDIV32_CDQ(uint32_t divisor, X86Context& __restrict ctx)
+{
+    const int32_t dividend = ctx.eax.i32;
+    const int32_t divisor_ = static_cast<int32_t>(divisor);
+    if (__builtin_expect(divisor_ == 0, 0))
+        return;
+    if (__builtin_expect(dividend == INT32_MIN && divisor_ == -1, 0))
+        return;
+
+    ctx.eax.i32 = dividend / divisor_;
+    ctx.edx.i32 = dividend % divisor_;
+}
+
 template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_SAR8(uint8_t& dst, const uint8_t count, X86Context& ctx)
 {

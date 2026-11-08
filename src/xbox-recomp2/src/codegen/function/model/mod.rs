@@ -30,7 +30,7 @@
 //! [`build`]: super::build
 //! [`write`]: mod@super::write
 
-use super::build::StepFailure;
+pub(in crate::codegen) use super::build::StepFailure;
 use crate::analysis::LocalTargets;
 use crate::config::FunctionAddress;
 use crate::decode::{CpuFlag, Insn, Register};
@@ -38,7 +38,7 @@ use crate::executable::SwitchTable;
 pub(in crate::codegen) use control_flow::{ControlFlow, Edge};
 pub(crate) use hook::Hook;
 pub(crate) use intrinsics::{
-    Call, Condition, MergedCmpJmp, MergedInstruction, MergedInstructionKind, Return,
+    Call, CdqIdiv, Condition, MergedCmpJmp, MergedInstruction, MergedInstructionKind, Return,
 };
 use xbox_recomp2_executable::GuestAddress32;
 
@@ -210,6 +210,9 @@ pub(crate) enum Op {
     /// A decoded return and its current stack cleanup.
     Return(Return),
 
+    /// An `idiv r/m32` right after `cdq`.
+    CdqIdiv(CdqIdiv),
+
     /// Usually a decode error.
     Failed {
         /// Where the instruction starts.
@@ -292,6 +295,7 @@ impl Op {
             Op::Guest(guest) => guest.address == address,
             Op::Call(call) => call.guest.address == address,
             Op::Return(ret) => ret.guest.address == address,
+            Op::CdqIdiv(idiv) => idiv.guest.address == address,
             Op::MergedCmpJmp(merged) => {
                 merged.compare.address == address
                     || merged

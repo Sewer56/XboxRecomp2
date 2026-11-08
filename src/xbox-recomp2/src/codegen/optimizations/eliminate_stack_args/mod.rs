@@ -173,6 +173,7 @@ mod tests {
                     .format(&guest.insn, 0, &mut text)
                     .unwrap()
                     .to_owned(),
+                Op::CdqIdiv(_) => panic!("idiv32_after_cdq runs after this pass"),
                 Op::Call(call) => format!("call {}", call.stack_bytes),
                 Op::Return(ret) => formatter
                     .format(&ret.guest.insn, 0, &mut text)

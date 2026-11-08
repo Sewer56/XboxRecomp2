@@ -1,10 +1,10 @@
 use super::super::prelude::*;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
-    write_divide(ctx, "X86_DIV");
+    write_divide(ctx, "X86_DIV", "");
 }
 
-pub(super) fn write_divide(ctx: &mut Emitter<'_>, helper: &str) {
+pub(super) fn write_divide(ctx: &mut Emitter<'_>, helper: &str, suffix: &str) {
     if ctx.insn.instruction().operand_count == 0 {
         return ctx.missing_form();
     }
@@ -28,6 +28,6 @@ pub(super) fn write_divide(ctx: &mut Emitter<'_>, helper: &str) {
 
     cpp!(
         ctx.out,
-        "{helper}{size}(static_cast<uint32_t>({divisor}), ctx);"
+        "{helper}{size}{suffix}(static_cast<uint32_t>({divisor}), ctx);"
     );
 }

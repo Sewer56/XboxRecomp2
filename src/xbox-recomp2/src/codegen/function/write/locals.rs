@@ -10,6 +10,7 @@ pub(super) fn get_variable_declarations(blocks: &[Block]) -> Vec<Local> {
         match op {
             Op::Guest(guest) => add_locals_for_insn(&guest.insn, &mut locals),
             Op::Call(call) => add_locals_for_insn(&call.guest.insn, &mut locals),
+            Op::CdqIdiv(idiv) => add_locals_for_insn(&idiv.guest.insn, &mut locals),
             Op::MergedCmpJmp(merged) => {
                 add_locals_for_insn(&merged.compare.insn, &mut locals);
                 for instruction in &merged.instructions {
