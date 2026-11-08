@@ -33,7 +33,7 @@ pub struct Optimizations {
     /// Turn cmp + jump into a plain `if (a < b)`.
     pub fuse_compare_branch: bool,
 
-    /// Use a 32-bit divide for `idiv` right after `cdq`.
+    /// Use a 32-bit divide for `idiv` after `cdq`.
     pub idiv32_after_cdq: bool,
 }
 
@@ -89,7 +89,7 @@ impl Optimizations {
         self.enabled && self.eliminate_dead_flags
     }
 
-    /// May `idiv` right after `cdq` use a 32-bit divide?
+    /// May `idiv` after `cdq` use a 32-bit divide?
     pub fn runs_idiv32_after_cdq(&self) -> bool {
         self.enabled && self.idiv32_after_cdq
     }

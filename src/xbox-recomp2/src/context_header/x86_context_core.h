@@ -2742,7 +2742,7 @@ X86_FORCEINLINE void X86_IDIV32(uint32_t divisor, X86Context& __restrict ctx)
     ctx.edx.u32 = static_cast<uint32_t>(static_cast<int32_t>(remainder));
 }
 
-// IDIV r/m32 right after CDQ, so we can assume EDX is just EAX's sign.
+// IDIV r/m32 after CDQ, so we can assume EDX is just EAX's sign.
 X86_FORCEINLINE void X86_IDIV32_CDQ(uint32_t divisor, X86Context& __restrict ctx)
 {
     const int32_t dividend = ctx.eax.i32;

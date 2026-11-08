@@ -1,21 +1,23 @@
-//! Marks each `idiv r/m32` right after `cdq`, so it gets a 32-bit divide.
+//! Marks each `idiv r/m32` after `cdq`, so it gets a 32-bit divide.
 //!
 //! See `idiv-after-cdq.md` for more info.
 
+use super::helpers::instruction::register_access::RegisterAccess;
 use crate::codegen::function::model::{CdqIdiv, FunctionModel, GuestOp, Hook, Op, StepFailure};
-use crate::decode::Mnemonic;
+use crate::decode::{Mnemonic, Register};
 use core::mem;
 use xbox_recomp2_executable::GuestAddress32;
 
-/// Turns each `idiv r/m32` right after `cdq` into [`Op::CdqIdiv`].
+/// Turns each `idiv r/m32` after `cdq` into [`Op::CdqIdiv`],
+/// if nothing between them changes EAX or EDX.
 pub(super) fn run(model: &mut FunctionModel) {
     for block in &mut model.blocks {
         let mut after_cdq = false;
         for op in &mut block.ops {
             let make = after_cdq && is_unhooked_idiv32(op, &model.hooks);
 
-            // Remember if this op is `cdq`, for the next op.
-            after_cdq = is_cdq(op);
+            // Remember the `cdq` until something may change EAX or EDX.
+            after_cdq = is_cdq(op) || (after_cdq && keeps_eax_edx(op, &model.hooks));
 
             if make {
                 make_intrinsic(op);
@@ -43,6 +45,20 @@ fn is_cdq(op: &Op) -> bool {
         Op::Guest(guest) => guest.insn.mnemonic() == Mnemonic::CDQ,
         _ => false,
     }
+}
+
+/// Whether `op` is an unhooked guest op that leaves EAX and EDX alone.
+fn keeps_eax_edx(op: &Op, hooks: &[Hook]) -> bool {
+    let guest = match op {
+        Op::Guest(guest) => guest,
+        _ => return false,
+    };
+    if is_hooked(guest, hooks) {
+        return false;
+    }
+
+    let access = RegisterAccess::of(&guest.insn);
+    !access.writes(Register::EAX) && !access.writes(Register::EDX)
 }
 
 /// Whether `op` is a guest `idiv r/m32` with no mid-assembly hook.
@@ -74,19 +90,21 @@ mod tests {
     use crate::codegen::optimizations::helpers::tests::model_of;
 
     #[test]
-    fn run_should_mark_idiv_only_right_after_cdq() {
+    fn run_should_mark_idiv_only_when_eax_and_edx_are_kept() {
         // Arrange
         #[rustfmt::skip]
         let code = [
             0x99,                   // 1000  cdq
-            0xF7, 0xFB,             // 1001  idiv ebx    ; right after cdq: marked
-            0x99,                   // 1003  cdq
-            0x90,                   // 1004  nop
-            0xF7, 0xFB,             // 1005  idiv ebx    ; nop in between: left alone
-            0xC3,                   // 1007  ret
+            0x6A, 0x0C,             // 1001  push 0x0C
+            0x5E,                   // 1003  pop  esi
+            0xF7, 0xFE,             // 1004  idiv esi    ; EAX, EDX kept: marked
+            0x99,                   // 1006  cdq
+            0x31, 0xD2,             // 1007  xor  edx, edx
+            0xF7, 0xFE,             // 1009  idiv esi    ; EDX changed: left alone
+            0xC3,                   // 100B  ret
         ];
         let mut model = model_of(&code);
-        let expected = model.address.0 + 1;
+        let expected = model.address.0 + 4;
 
         // Act
         run(&mut model);

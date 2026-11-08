@@ -3,7 +3,7 @@
 //! - [`Call`]: a `call` instruction.
 //! - [`Return`]: a `ret` instruction.
 //! - [`MergedCmpJmp`]: a compare and the conditional jump that reads it.
-//! - [`CdqIdiv`]: an `idiv r/m32` right after `cdq`.
+//! - [`CdqIdiv`]: an `idiv r/m32` after `cdq`.
 
 pub(crate) use call::Call;
 pub(crate) use cdq_idiv::CdqIdiv;

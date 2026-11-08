@@ -14,7 +14,7 @@ and before being written out as C++.
 | [`x87_lowering`]          | Keeps x87 values in local variables.                | Not built yet |
 | [`fuse_compare_branch`]   | Turns cmp + jump into a plain `if (a < b)`.         | Working       |
 | [`eliminate_dead_flags`]  | Only computes arithmetic flags that are read later. | Working       |
-| [`idiv32_after_cdq`]      | Uses a 32-bit `idiv` right after `cdq`.             | Working       |
+| [`idiv32_after_cdq`]      | Uses a 32-bit `idiv` after `cdq`.                   | Working       |
 
 ## Helpers
 

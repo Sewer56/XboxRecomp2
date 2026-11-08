@@ -1,8 +1,8 @@
-//! A guest `idiv r/m32` right after `cdq`.
+//! A guest `idiv r/m32` after `cdq`.
 
 use super::super::GuestOp;
 
-/// A guest `idiv r/m32` that comes right after a `cdq` before it.
+/// A guest `idiv r/m32` after `cdq`, with EAX and EDX unchanged between them.
 /// i.e. a sign-extended 32-bit number.
 ///
 /// We can skip some calculations here, so this is an intrinsic.

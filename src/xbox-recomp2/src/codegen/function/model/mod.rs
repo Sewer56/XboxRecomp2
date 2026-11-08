@@ -210,7 +210,7 @@ pub(crate) enum Op {
     /// A decoded return and its current stack cleanup.
     Return(Return),
 
-    /// An `idiv r/m32` right after `cdq`.
+    /// An `idiv r/m32` after `cdq`.
     CdqIdiv(CdqIdiv),
 
     /// Usually a decode error.

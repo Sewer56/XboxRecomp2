@@ -29,9 +29,9 @@ cut down `X86_IDIV32_CDQ`.
 
 **We only do this when:**
 
-- `cdq` comes right before the `idiv`.
+- Nothing between the `cdq` and the `idiv` changes EAX or EDX.
 - No jump lands on the `idiv`, since that path may skip the `cdq`.
-- The `idiv` has no [midasm hook], which could change EAX or EDX.
+- No [midasm hook] runs on the `idiv` or in between.
 
 ## Before and after
 
