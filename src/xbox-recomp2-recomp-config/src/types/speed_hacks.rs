@@ -27,7 +27,9 @@ pub struct SpeedHacks {
     /// Don't track SSE exception flags in MXCSR.
     pub fast_sse_status: bool,
 
-    /// Let the compiler keep ESP-relative guest stack values in registers.
+    /// Let the compiler keep guest stack values in registers.
+    /// - `[esp+N]` by default.
+    /// - `[ebp+N]` where possible if `find_ebp_frames` optimisation is enabled.
     pub nonvolatile_stack: bool,
 
     /// Let the compiler merge or drop packed SSE loads and stores.
@@ -69,7 +71,7 @@ impl SpeedHacks {
         self.enabled && self.fast_sse_status
     }
 
-    /// Do ESP-relative guest stack accesses skip `volatile`?
+    /// Do guest stack accesses skip `volatile`?
     pub fn runs_nonvolatile_stack(&self) -> bool {
         self.enabled && self.nonvolatile_stack
     }

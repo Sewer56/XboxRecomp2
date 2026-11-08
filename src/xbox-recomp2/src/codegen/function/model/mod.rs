@@ -90,6 +90,9 @@ pub(crate) struct FunctionModel {
 
     /// What's changed from original calling convention.
     pub fastcall: FastcallConvention,
+
+    /// Whether `[ebp+N]` always points into this function's stack frame.
+    pub ebp_frame: bool,
 }
 
 /// A scratch variable declared at the top of the function.

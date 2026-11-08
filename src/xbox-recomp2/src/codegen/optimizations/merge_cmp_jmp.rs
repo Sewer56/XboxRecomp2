@@ -6,13 +6,14 @@
 //! - `codegen/function/write/emit/instructions/merged_cmp_jmp/` does step 4.
 
 use super::helpers::flag_boundaries::FlagBoundaries;
+use super::helpers::instruction::control_transfer::leaves_block;
 use super::helpers::instruction::flag_effects::EFlagEffects;
 use super::helpers::needed_flags::NeededFlags;
 use crate::codegen::function::model::{
     ALL_ARITHMETIC_FLAGS, BlockOpIndex, FunctionModel, GuestOp, Hook, MergedCmpJmp,
     MergedInstruction, MergedInstructionKind, Op,
 };
-use crate::decode::{CpuFlag, Insn, InstructionCategory, Mnemonic, Register, register};
+use crate::decode::{CpuFlag, Insn, Mnemonic, Register, register};
 use core::mem;
 
 /// Most instructions we check after a compare.
@@ -343,21 +344,6 @@ fn is_plain(insn: &Insn) -> bool {
 /// Whether `insn` is `fstp st0`, which pops the x87 stack.
 fn is_pop_st0(insn: &Insn) -> bool {
     insn.mnemonic() == Mnemonic::FSTP && register(&insn.operands()[0]) == Some(Register::ST0)
-}
-
-/// Whether `insn` is a jump, call, return, interrupt or system instruction.
-fn leaves_block(insn: &Insn) -> bool {
-    matches!(
-        insn.instruction().meta.category,
-        InstructionCategory::COND_BR
-            | InstructionCategory::UNCOND_BR
-            | InstructionCategory::CALL
-            | InstructionCategory::RET
-            | InstructionCategory::INTERRUPT
-            | InstructionCategory::SYSCALL
-            | InstructionCategory::SYSRET
-            | InstructionCategory::SYSTEM
-    )
 }
 
 /// Whether `insn` reads or writes any arithmetic flag, even only sometimes.

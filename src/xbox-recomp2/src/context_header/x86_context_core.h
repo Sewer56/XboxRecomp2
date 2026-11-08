@@ -235,7 +235,7 @@ typedef float x86_guest_m128 __attribute__((vector_size(16), aligned(16), may_al
 #define X86_PLAIN_LOAD_APS(addr) (*reinterpret_cast<const x86_guest_m128*>(base + (addr)))
 #define X86_PLAIN_STORE_APS(addr, val) (*reinterpret_cast<x86_guest_m128*>(base + (addr)) = (val))
 
-// Speed hack: `nonvolatile_stack` uses `Volatile = false` guest stack accesses (ESP reg).
+// Speed hack: `nonvolatile_stack` uses `Volatile = false` guest stack accesses.
 template<typename T, bool Volatile>
 struct x86_slot { typedef volatile T type; };
 template<typename T>

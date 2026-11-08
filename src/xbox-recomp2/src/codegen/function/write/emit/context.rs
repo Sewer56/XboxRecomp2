@@ -83,6 +83,9 @@ pub(in crate::codegen::function::write) struct FunctionState {
 
     /// Whether MMX code uses the local array `mmx` instead of `ctx.fpu.mmx`.
     pub local_mmx: bool,
+
+    /// Whether `[ebp+N]` always points into this function's stack frame.
+    pub ebp_frame: bool,
 }
 
 impl FunctionState {
