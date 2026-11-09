@@ -1,6 +1,7 @@
 use super::super::prelude::*;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
+    let backward = super::backward(ctx);
     // Use DI and CX without changing the upper register halves.
     let attributes = ctx.insn.instruction().attributes;
     let repeat =
@@ -11,7 +12,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
                 ctx.out,
                 "
                 {{
-                const uint16_t step = (ctx.eflags.rare & X86EFlags::DF) ? -2 : 2;
+                const uint16_t step = ({backward}) ? -2 : 2;
                 uint16_t dst = ctx.edi.u16;
                 for (uint16_t count = ctx.ecx.u16; count > 0; --count, dst += step) {{
                     X86_STORE_U16(dst, ctx.eax.u16);
@@ -26,7 +27,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
                 ctx.out,
                 "
                 X86_STORE_U16(ctx.edi.u16, ctx.eax.u16);
-                ctx.edi.u16 += (ctx.eflags.rare & X86EFlags::DF) ? -2 : 2;
+                ctx.edi.u16 += ({backward}) ? -2 : 2;
             "
             );
         }
@@ -41,10 +42,12 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     // unless native_sized_addresses is on.
     if repeat {
         let start = super::rep_start(ctx);
+        super::try_memset(ctx, "ctx.eax.u16");
         cpp!(
             ctx.out,
             "
-            if (ctx.eflags.rare & X86EFlags::DF) {{
+            {{
+            if ({backward}) {{
                 for (uint32_t i = 0; i < ctx.ecx.u32; ++i) {{
                     X86_STORE_U16({start} - i * 2, ctx.eax.u16);
                 }}
@@ -56,6 +59,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
                 ctx.edi.u32 += ctx.ecx.u32 * 2;
             }}
             ctx.ecx.u32 = 0;
+            }}
         "
         );
     } else {
@@ -63,7 +67,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             ctx.out,
             "
             X86_STORE_U16(static_cast<uintptr_t>(ctx.edi.u32), ctx.eax.u16);
-            ctx.edi.u32 += (ctx.eflags.rare & X86EFlags::DF) ? -2 : 2;
+            ctx.edi.u32 += ({backward}) ? -2 : 2;
         "
         );
     }

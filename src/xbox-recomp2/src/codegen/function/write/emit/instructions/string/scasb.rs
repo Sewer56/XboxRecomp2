@@ -1,6 +1,7 @@
 use super::super::prelude::*;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
+    let backward = super::backward(ctx);
     let attributes = ctx.insn.instruction().attributes;
     let base = ctx.base.get();
 
@@ -9,7 +10,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             ctx.out,
             "
             {{
-            const uint32_t step_{base} = (ctx.eflags.rare & X86EFlags::DF) ? -1 : 1;
+            const uint32_t step_{base} = ({backward}) ? -1 : 1;
             uint32_t count_{base} = ctx.ecx.u32, dst_{base} = ctx.edi.u32;
             for (; count_{base} > 0; count_{base}--, dst_{base} += step_{base}) {{
                 uint8_t val = X86_LOAD_U8(dst_{base});
@@ -31,7 +32,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             "
             {{
             const uint8_t al_val_{base} = ctx.eax.u8_lo;
-            const bool df_{base} = (ctx.eflags.rare & X86EFlags::DF) != 0;
+            const bool df_{base} = ({backward}) != 0;
             uint32_t count_{base} = ctx.ecx.u32;
             while (count_{base} > 0) {{
                 ctx.eflags.update_compare_flags_U8(al_val_{base}, X86_LOAD_U8(ctx.edi.u32));
@@ -51,7 +52,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             "
             uint8_t mem_val = X86_LOAD_U8(ctx.edi.u32);
             ctx.eflags.update_compare_flags_U8(ctx.eax.u8_lo, mem_val);
-            ctx.edi.u32 += (ctx.eflags.rare & X86EFlags::DF) ? -1 : 1;
+            ctx.edi.u32 += ({backward}) ? -1 : 1;
         "
         );
     }

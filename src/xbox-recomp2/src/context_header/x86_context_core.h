@@ -300,6 +300,81 @@ X86_FORCEINLINE void x86_store_ntq(uint8_t* address, uint64_t value)
                     static_cast<long long>(val))
 #endif
 
+// ── rep_memmove_memset speed hack ────────────────────────────────────────────
+
+// Does a `rep movs` with one `memmove`, or a `rep stos` with one `memset`.
+// Returns false if it can't, and the caller runs the normal loop instead.
+#define X86_REP_MEMMOVE_MEMSET_MIN_BYTES 16u
+
+// Size of the copy or fill in bytes, or 0 to use the normal loop.
+template <typename T>
+X86_FORCEINLINE uint32_t x86_rep_bytes(uint32_t ecx)
+{
+    // Too big to count in bytes.
+    if (ecx > 0xFFFFFFFFu / sizeof(T))
+        return 0;
+
+    // Small copies are faster with the loop.
+    // Note: If size is constant, then clang will unroll inner loop; which
+    //       is how we can stay 'performant' here.
+    const uint32_t bytes = ecx * sizeof(T);
+    if (!__builtin_constant_p(bytes) && bytes < X86_REP_MEMMOVE_MEMSET_MIN_BYTES)
+        return 0;
+
+    return bytes;
+}
+
+template <typename T>
+X86_FORCEINLINE bool x86_rep_movs_memmove(uint8_t* base, uint32_t& esi, uint32_t& edi, uint32_t& ecx, bool backward)
+{
+    const uint32_t bytes = x86_rep_bytes<T>(ecx);
+    if (bytes == 0)
+        return false;
+
+    // When the destination overlaps the source, ahead of it, x86 behaves
+    // differently than `memmove`, so we can't use it.
+    const uint32_t ahead = backward ? esi - edi : edi - esi;
+    if (ahead < bytes)
+        return false;
+
+    if (backward) {
+        const uint32_t below = bytes - sizeof(T);
+        memmove(base + edi - below, base + esi - below, bytes);
+        esi -= bytes;
+        edi -= bytes;
+    } else {
+        memmove(base + edi, base + esi, bytes);
+        esi += bytes;
+        edi += bytes;
+    }
+
+    ecx = 0;
+    return true;
+}
+
+template <typename T>
+X86_FORCEINLINE bool x86_rep_stos_memset(uint8_t* base, uint32_t& edi, uint32_t& ecx, T value, bool backward)
+{
+    const uint32_t bytes = x86_rep_bytes<T>(ecx);
+    if (bytes == 0)
+        return false;
+
+    // Check if first byte is repeated.
+    if (value != T(uint8_t(value) * 0x01010101u))
+        return false;
+
+    if (backward) {
+        memset(base + edi - (bytes - sizeof(T)), uint8_t(value), bytes);
+        edi -= bytes;
+    } else {
+        memset(base + edi, uint8_t(value), bytes);
+        edi += bytes;
+    }
+
+    ecx = 0;
+    return true;
+}
+
 // A release fence is a no-op on x86.
 #if defined(X86_HOST_X86)
 #define X86_SFENCE() _mm_sfence()

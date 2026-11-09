@@ -85,6 +85,7 @@ nav:
       - Skip Unused Flags: optimizations/skip-unused-flags.md
       - Find EBP Frames: optimizations/find-ebp-frames.md
       - IDIV After CDQ: optimizations/idiv-after-cdq.md
+      - Find String Direction: optimizations/find-string-direction.md
 
   - Why I Wrote XboxRecomp2: why-i-wrote-xboxrecomp2.md
   - License: https://reloaded-project.github.io/Reloaded.MkDocsMaterial.Themes.R2/Pages/license.html

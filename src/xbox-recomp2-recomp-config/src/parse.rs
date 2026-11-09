@@ -73,6 +73,7 @@ struct OptimizationsSection {
     fuse_compare_branch: bool,
     find_ebp_frames: bool,
     idiv32_after_cdq: bool,
+    find_string_direction: bool,
 }
 
 /// The `[speed_hacks]` section.
@@ -89,6 +90,7 @@ struct SpeedHacksSection {
     plain_sse_memory: bool,
     lazy_cmov_load: bool,
     native_sized_addresses: bool,
+    rep_memmove_memset: bool,
     clobber_eflags_for_unknown_code: bool,
 }
 
@@ -126,6 +128,7 @@ impl Default for OptimizationsSection {
             fuse_compare_branch: passes.fuse_compare_branch,
             find_ebp_frames: passes.find_ebp_frames,
             idiv32_after_cdq: passes.idiv32_after_cdq,
+            find_string_direction: passes.find_string_direction,
         }
     }
 }
@@ -144,6 +147,7 @@ impl Default for SpeedHacksSection {
             plain_sse_memory: hacks.plain_sse_memory,
             lazy_cmov_load: hacks.lazy_cmov_load,
             native_sized_addresses: hacks.native_sized_addresses,
+            rep_memmove_memset: hacks.rep_memmove_memset,
             clobber_eflags_for_unknown_code: hacks.clobber_eflags_for_unknown_code,
         }
     }
@@ -194,6 +198,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             fuse_compare_branch: raw.optimizations.fuse_compare_branch,
             find_ebp_frames: raw.optimizations.find_ebp_frames,
             idiv32_after_cdq: raw.optimizations.idiv32_after_cdq,
+            find_string_direction: raw.optimizations.find_string_direction,
         },
         speed_hacks: SpeedHacks {
             enabled: raw.speed_hacks.enable,
@@ -206,6 +211,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             plain_sse_memory: raw.speed_hacks.plain_sse_memory,
             lazy_cmov_load: raw.speed_hacks.lazy_cmov_load,
             native_sized_addresses: raw.speed_hacks.native_sized_addresses,
+            rep_memmove_memset: raw.speed_hacks.rep_memmove_memset,
             clobber_eflags_for_unknown_code: raw.speed_hacks.clobber_eflags_for_unknown_code,
         },
         ..RecompilerConfig::default()

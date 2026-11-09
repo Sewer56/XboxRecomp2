@@ -16,6 +16,7 @@ and before being written out as C++.
 | [`eliminate_dead_flags`]  | Only computes arithmetic flags that are read later. | Working       |
 | [`find_ebp_frames`]       | Finds functions that use EBP as the frame pointer.  | Working       |
 | [`idiv32_after_cdq`]      | Uses a 32-bit `idiv` after `cdq`.                   | Working       |
+| [`find_string_direction`] | Skips the direction check in `rep movs` and co.     | Working       |
 
 ## Helpers
 
@@ -30,4 +31,5 @@ e.g. to track the stack, or find every caller of a function.
 [`fuse_compare_branch`]: merge-compare-and-jump.md
 [`find_ebp_frames`]: find-ebp-frames.md
 [`idiv32_after_cdq`]: idiv-after-cdq.md
+[`find_string_direction`]: find-string-direction.md
 [helpers]: helpers/index.md

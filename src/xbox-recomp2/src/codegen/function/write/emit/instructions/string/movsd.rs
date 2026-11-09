@@ -1,6 +1,7 @@
 use super::super::prelude::*;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
+    let backward = super::backward(ctx);
     let base = ctx.base.get();
     let (address, step) = super::rep_types(ctx);
 
@@ -10,11 +11,12 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         .attributes
         .contains(InstructionAttributes::HAS_REP)
     {
+        super::try_memmove(ctx, "uint32_t");
         cpp!(
             ctx.out,
             "
             {{
-            const {step} step_{base} = (ctx.eflags.rare & X86EFlags::DF) ? -4 : 4;
+            const {step} step_{base} = ({backward}) ? -4 : 4;
             uint32_t count_{base} = ctx.ecx.u32;
             {address} src_{base} = ctx.esi.u32, dst_{base} = ctx.edi.u32;
             for (; count_{base} > 0; count_{base}--, src_{base} += step_{base}, dst_{base} += step_{base}) {{
@@ -31,8 +33,8 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             ctx.out,
             "
             X86_STORE_U32(ctx.edi.u32, X86_LOAD_U32(ctx.esi.u32));
-            ctx.esi.u32 += (ctx.eflags.rare & X86EFlags::DF) ? -4 : 4;
-            ctx.edi.u32 += (ctx.eflags.rare & X86EFlags::DF) ? -4 : 4;
+            ctx.esi.u32 += ({backward}) ? -4 : 4;
+            ctx.edi.u32 += ({backward}) ? -4 : 4;
         "
         );
     }

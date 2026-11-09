@@ -19,7 +19,9 @@
 //! ```
 
 use super::called::Called;
-use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, FunctionModel, GuestOp, Op};
+use crate::codegen::function::model::{
+    ALL_ARITHMETIC_FLAGS, DirectionFlag, FunctionModel, GuestOp, Op,
+};
 use crate::codegen::optimizations::helpers::call_setup::CallSetup;
 use crate::codegen::optimizations::helpers::entry_loads::EntryLoad;
 use crate::codegen::optimizations::helpers::instruction::register_access::RegisterAccess;
@@ -126,6 +128,7 @@ fn rewrite(ops: &mut Vec<Op>, call: usize, function: &Called, setup: &CallSetup)
             last_in_function: false,
             rewritten: true,
             needed_flags: ALL_ARITHMETIC_FLAGS,
+            direction: DirectionFlag::Unknown,
         })
     });
     ops.splice(call..call, moves);

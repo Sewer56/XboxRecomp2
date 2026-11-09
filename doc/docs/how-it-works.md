@@ -145,6 +145,7 @@ eliminate_dead_flags = true     # compute only flags later instructions read
 fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
 find_ebp_frames = true          # let nonvolatile_stack cover [ebp+N] where safe
 idiv32_after_cdq = true         # 32-bit divide for `idiv` after `cdq`
+find_string_direction = true    # skip the direction flag check in `rep movs` and co.
 
 # Hacks that sacrifice accuracy for speed. Usually safe.
 # But test your recomp without, before testing with.
@@ -194,6 +195,12 @@ lazy_cmov_load = true
 #
 #              (On Xbox, that's kernel space, you can't read it!)
 native_sized_addresses = true
+
+# Run `rep movs` and `rep stos` as memmove and memset.
+# Needs native_sized_addresses.
+# Side effect: Other threads may see the copied bytes in any order.
+#              Real x86 allows this too, so games shouldn't rely on it.
+rep_memmove_memset = true
 
 # Assume calls never pass results in eflags.
 # Side effect: Breaks hand-written asm that does this. (Compilers never do this.)
