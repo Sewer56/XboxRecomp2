@@ -2,7 +2,7 @@
 
 use super::{CodeWriter, operands};
 use crate::analysis::LocalTargets;
-use crate::codegen::function::model::ALL_ARITHMETIC_FLAGS;
+use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
 use crate::config::RecompilerConfig;
 use crate::decode::{CpuFlag, DecodedOperand, Insn};
 use crate::executable::{ImportMap, SwitchTable, SymbolTable};
@@ -23,6 +23,9 @@ pub(in crate::codegen::function::write) struct Emitter<'a> {
 
     /// eflags observable after this instruction.
     pub needed_eflags: CpuFlag,
+
+    /// Value of DF at this instruction, if known.
+    pub direction: DirectionFlag,
 
     /// The program's functions.
     pub symbols: &'a SymbolTable,

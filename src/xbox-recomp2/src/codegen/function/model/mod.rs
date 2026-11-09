@@ -253,6 +253,23 @@ pub(crate) struct GuestOp {
     /// Arithmetic eflags observable after this instruction.
     /// (The flags we need, based on future instructions that read them within func.)
     pub needed_flags: CpuFlag,
+
+    /// Value of DF at this instruction, if known.
+    pub direction: DirectionFlag,
+}
+
+/// Which way string instructions like `rep movsd` walk memory.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum DirectionFlag {
+    /// Check at runtime bozo.
+    #[default]
+    Unknown,
+
+    /// Addresses go up. (DF clear)
+    Forward,
+
+    /// Addresses go down. (DF is set)
+    Backward,
 }
 
 impl BlockOpIndex {

@@ -283,7 +283,7 @@ fn emitter_for(mnemonic: Mnemonic) -> Option<EmitterFn> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::function::model::ALL_ARITHMETIC_FLAGS;
+    use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
     use crate::codegen::function::write::emit::{CodeWriter, FunctionState};
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, instruction};
     use crate::config::RecompilerConfig;
@@ -300,6 +300,7 @@ mod tests {
             base: 0x1000.into(),
             insn: &insn,
             needed_eflags: ALL_ARITHMETIC_FLAGS,
+            direction: DirectionFlag::Unknown,
             symbols: &SymbolTable::default(),
             imports: &ImportMap::default(),
             config: &config,

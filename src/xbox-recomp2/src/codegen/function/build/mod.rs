@@ -7,8 +7,8 @@
 //! - [`labels`] finds the addresses that need labels, and the hooks.
 
 use super::model::{
-    ALL_ARITHMETIC_FLAGS, Block, Call, Entry, Exit, FunctionAbi, FunctionModel, GuestOp, Hook, Op,
-    Return,
+    ALL_ARITHMETIC_FLAGS, Block, Call, DirectionFlag, Entry, Exit, FunctionAbi, FunctionModel,
+    GuestOp, Hook, Op, Return,
 };
 use crate::analysis::{Function, FunctionBody};
 use crate::codegen::optimizations::helpers::stack_frame::STACK_WORD_BYTES;
@@ -169,6 +169,7 @@ fn add_step(
                 last_in_function: step.is_last_instruction && step.is_final_step,
                 rewritten: false,
                 needed_flags: ALL_ARITHMETIC_FLAGS,
+                direction: DirectionFlag::Unknown,
             };
             if insn.mnemonic() == Mnemonic::CALL {
                 // We can do some optimisations around CALLs

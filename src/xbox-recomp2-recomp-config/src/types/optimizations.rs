@@ -38,6 +38,9 @@ pub struct Optimizations {
 
     /// Use a 32-bit divide for `idiv` after `cdq`.
     pub idiv32_after_cdq: bool,
+
+    /// Work out which way string instructions like `rep movsd` run.
+    pub find_string_direction: bool,
 }
 
 impl Optimizations {
@@ -60,6 +63,7 @@ impl Optimizations {
             fuse_compare_branch: false,
             find_ebp_frames: false,
             idiv32_after_cdq: false,
+            find_string_direction: false,
         }
     }
 
@@ -102,6 +106,11 @@ impl Optimizations {
     pub fn runs_idiv32_after_cdq(&self) -> bool {
         self.enabled && self.idiv32_after_cdq
     }
+
+    /// Do we work out which way string instructions run?
+    pub fn runs_find_string_direction(&self) -> bool {
+        self.enabled && self.find_string_direction
+    }
 }
 
 impl Default for Optimizations {
@@ -116,6 +125,7 @@ impl Default for Optimizations {
             fuse_compare_branch: true,
             find_ebp_frames: true,
             idiv32_after_cdq: true,
+            find_string_direction: true,
         }
     }
 }
@@ -155,7 +165,8 @@ mod tests {
             Optimizations::runs_fuse_compare_branch,
             Optimizations::runs_eliminate_dead_flags,
             Optimizations::runs_find_ebp_frames,
-            Optimizations::runs_idiv32_after_cdq
+            Optimizations::runs_idiv32_after_cdq,
+            Optimizations::runs_find_string_direction
         )]
         runs: fn(&Optimizations) -> bool,
         #[case] enabled: bool,
@@ -173,6 +184,7 @@ mod tests {
             fuse_compare_branch: own_switch,
             find_ebp_frames: own_switch,
             idiv32_after_cdq: own_switch,
+            find_string_direction: own_switch,
         };
 
         // Act

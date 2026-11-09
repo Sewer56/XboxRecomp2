@@ -42,6 +42,9 @@ pub struct SpeedHacks {
     /// Usually safe to use, just beware this will break 64-bit wraps.
     pub native_sized_addresses: bool,
 
+    /// Run REP MOVS and REP STOS as `memmove` and `memset`.
+    pub rep_memmove_memset: bool,
+
     /// Assume code we can't see never passes eflags across a call or return.
     pub clobber_eflags_for_unknown_code: bool,
 }
@@ -92,6 +95,11 @@ impl SpeedHacks {
         self.enabled && self.native_sized_addresses
     }
 
+    /// Do REP MOVS and REP STOS run as `memmove` and `memset`?
+    pub fn runs_rep_memmove_memset(&self) -> bool {
+        self.enabled && self.rep_memmove_memset
+    }
+
     /// Do calls and returns we can't follow clobber eflags?
     pub fn runs_clobber_eflags_for_unknown_code(&self) -> bool {
         self.enabled && self.clobber_eflags_for_unknown_code
@@ -111,6 +119,7 @@ impl Default for SpeedHacks {
             plain_sse_memory: true,
             lazy_cmov_load: true,
             native_sized_addresses: true,
+            rep_memmove_memset: true,
             clobber_eflags_for_unknown_code: true,
         }
     }
@@ -136,6 +145,7 @@ mod tests {
             SpeedHacks::runs_plain_sse_memory,
             SpeedHacks::runs_lazy_cmov_load,
             SpeedHacks::runs_native_sized_addresses,
+            SpeedHacks::runs_rep_memmove_memset,
             SpeedHacks::runs_clobber_eflags_for_unknown_code
         )]
         runs: fn(&SpeedHacks) -> bool,
@@ -155,6 +165,7 @@ mod tests {
             plain_sse_memory: own_switch,
             lazy_cmov_load: own_switch,
             native_sized_addresses: own_switch,
+            rep_memmove_memset: own_switch,
             clobber_eflags_for_unknown_code: own_switch,
         };
 

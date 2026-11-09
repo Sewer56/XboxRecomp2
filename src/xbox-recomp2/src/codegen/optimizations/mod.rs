@@ -10,6 +10,7 @@ mod eliminate_dead_flags;
 pub(in crate::codegen) mod eliminate_return_slot;
 pub(in crate::codegen) mod eliminate_stack_args;
 mod find_ebp_frames;
+mod find_string_direction;
 pub(in crate::codegen) mod helpers;
 mod idiv32_after_cdq;
 mod merge_cmp_jmp;
@@ -73,5 +74,9 @@ pub(crate) fn run(
         for model in models.iter_mut() {
             idiv32_after_cdq::run(model);
         }
+    }
+
+    if switches.runs_find_string_direction() {
+        find_string_direction::run(models, diag);
     }
 }

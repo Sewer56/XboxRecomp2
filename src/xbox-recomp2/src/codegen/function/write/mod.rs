@@ -440,6 +440,7 @@ fn guest_emitter<'a>(
         base: guest.address,
         insn: &guest.insn,
         needed_eflags: guest.needed_flags,
+        direction: guest.direction,
         symbols: &context.executable.symbols,
         imports: &context.executable.imports,
         config: context.config,
@@ -604,7 +605,7 @@ fn report_failure(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::function::model::ALL_ARITHMETIC_FLAGS;
+    use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, executable, instruction};
     use crate::config::RecompilerConfig;
     use ahash::HashSet;
@@ -633,6 +634,7 @@ mod tests {
             last_in_function: false,
             rewritten: false,
             needed_flags: ALL_ARITHMETIC_FLAGS,
+            direction: DirectionFlag::Unknown,
         };
         let executable = executable(&code);
         let config = RecompilerConfig {
