@@ -131,13 +131,7 @@ impl EFlagEffects {
 fn has_fixed_flags(mnemonic: Mnemonic) -> bool {
     matches!(
         mnemonic,
-        Mnemonic::COMISS
-            | Mnemonic::UCOMISS
-            | Mnemonic::FCOMIP
-            | Mnemonic::FUCOMIP
-            | Mnemonic::BSF
-            | Mnemonic::XADD
-            | Mnemonic::CMPXCHG
+        Mnemonic::COMISS | Mnemonic::UCOMISS | Mnemonic::FCOMIP | Mnemonic::FUCOMIP
     )
 }
 

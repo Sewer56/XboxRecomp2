@@ -692,7 +692,7 @@ private:
 
         if constexpr ((Needed & OF) != 0) {
 #if defined(X86_HOST_X86)
-            if constexpr (Bits == 16)
+            if constexpr (Bits != 8)
                 arithmetic |= sub_overflow_flag<Bits>(lhs, rhs);
             else
                 arithmetic |= overflow_flag<Bits>((lhs ^ rhs) & changed);
@@ -3753,24 +3753,29 @@ X86_FORCEINLINE void X86_SBB8_MEM(uintptr_t addr, uint8_t src, X86Context& __res
 
 // --- BSF helpers ---
 
+// Intel's CPU manual says CF, OF, SF, AF and PF are undefined after BSF, so we write 0.
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_BSF32(uint32_t& dst, uint32_t src, X86Context& ctx)
 {
-    // Intel's CPU manual says CF, OF, SF, AF and PF are undefined after BSF, so we write 0.
     if (src == 0) {
-        ctx.eflags.common = X86EFlags::ZF;
+        if constexpr (Needed != 0)
+            ctx.eflags.common = X86EFlags::ZF;
     } else {
-        ctx.eflags.common = 0;
+        if constexpr (Needed != 0)
+            ctx.eflags.common = 0;
         dst = __builtin_ctz(src);
     }
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_BSF16(uint16_t& dst, uint16_t src, X86Context& ctx)
 {
-    // Intel's CPU manual says CF, OF, SF, AF and PF are undefined after BSF, so we write 0.
     if (src == 0) {
-        ctx.eflags.common = X86EFlags::ZF;
+        if constexpr (Needed != 0)
+            ctx.eflags.common = X86EFlags::ZF;
     } else {
-        ctx.eflags.common = 0;
+        if constexpr (Needed != 0)
+            ctx.eflags.common = 0;
         dst = (uint16_t)__builtin_ctz(src);
     }
 }
@@ -4038,91 +4043,83 @@ X86_FORCEINLINE void X86_SHRD16_MEM(uintptr_t addr, uint16_t src, uint32_t raw_c
 }
 
 // --- CMPXCHG helpers ---
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG32_MEM(uintptr_t addr, uint32_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint32_t acc = ctx.eax.u32;
     uint32_t dest = acc;
-    if (X86_ATOMIC_CMPXCHG<uint32_t>(base, addr, dest, src_val)) {
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
-        ctx.eax.u32 = dest;
-        ctx.eflags.update_flags_sub_U32(acc, dest, acc - dest);
-    }
+    X86_ATOMIC_CMPXCHG<uint32_t>(base, addr, dest, src_val);
+    ctx.eax.u32 = dest;
+    ctx.eflags.update_compare_flags_U32<Needed>(acc, dest);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG32(uint32_t& current, uint32_t src_val, X86Context& ctx)
 {
     const uint32_t acc = ctx.eax.u32;
     const uint32_t dest = current;
-    if (acc == dest) {
+    if (acc == dest)
         current = src_val;
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
+    else
         ctx.eax.u32 = dest;
-        ctx.eflags.update_flags_sub_U32(acc, dest, acc - dest);
-    }
+    ctx.eflags.update_compare_flags_U32<Needed>(acc, dest);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG16_MEM(uintptr_t addr, uint16_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint16_t acc = ctx.eax.u16;
     uint16_t dest = acc;
-    if (X86_ATOMIC_CMPXCHG<uint16_t>(base, addr, dest, src_val)) {
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
-        ctx.eax.u16 = dest;
-        ctx.eflags.update_flags_sub_U16(acc, dest, uint16_t(acc - dest));
-    }
+    X86_ATOMIC_CMPXCHG<uint16_t>(base, addr, dest, src_val);
+    ctx.eax.u16 = dest;
+    ctx.eflags.update_compare_flags_U16<Needed>(acc, dest);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG16(uint16_t& current, uint16_t src_val, X86Context& ctx)
 {
     const uint16_t acc = ctx.eax.u16;
     const uint16_t dest = current;
-    if (acc == dest) {
+    if (acc == dest)
         current = src_val;
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
+    else
         ctx.eax.u16 = dest;
-        ctx.eflags.update_flags_sub_U16(acc, dest, uint16_t(acc - dest));
-    }
+    ctx.eflags.update_compare_flags_U16<Needed>(acc, dest);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG8_MEM(uintptr_t addr, uint8_t src_val, X86Context& __restrict ctx, uint8_t* base)
 {
     const uint8_t acc = ctx.eax.u8_lo;
     uint8_t dest = acc;
-    if (X86_ATOMIC_CMPXCHG<uint8_t>(base, addr, dest, src_val)) {
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
-        ctx.eax.u8_lo = dest;
-        ctx.eflags.update_flags_sub_U8(acc, dest, uint8_t(acc - dest));
-    }
+    X86_ATOMIC_CMPXCHG<uint8_t>(base, addr, dest, src_val);
+    ctx.eax.u8_lo = dest;
+    ctx.eflags.update_compare_flags_U8<Needed>(acc, dest);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_CMPXCHG8(uint8_t& current, uint8_t src_val, X86Context& ctx)
 {
     const uint8_t acc = ctx.eax.u8_lo;
     const uint8_t dest = current;
-    if (acc == dest) {
+    if (acc == dest)
         current = src_val;
-        ctx.eflags.common = X86EFlags::ZF | X86EFlags::PF;
-    } else {
+    else
         ctx.eax.u8_lo = dest;
-        ctx.eflags.update_flags_sub_U8(acc, dest, uint8_t(acc - dest));
-    }
+    ctx.eflags.update_compare_flags_U8<Needed>(acc, dest);
 }
 
 // --- XADD helpers ---
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD32_ATOMIC(uintptr_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
 {
     uint32_t add = src;
     uint32_t orig = X86_ATOMIC_XADD_U32(addr, add);
     src = orig;
-    ctx.eflags.update_flags_add_U32(orig, add, orig + add);
+    ctx.eflags.update_flags_add_U32<Needed>(orig, add, orig + add);
 }
 
-template<bool Volatile = true>
+template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD32_MEM(uintptr_t addr, uint32_t& src, X86Context& ctx, uint8_t* base)
 {
     uint32_t add = src;
@@ -4130,18 +4127,19 @@ X86_FORCEINLINE void X86_XADD32_MEM(uintptr_t addr, uint32_t& src, X86Context& c
     uint32_t res = orig + add;
     X86_STORE_AS(uint32_t, Volatile, addr, res);
     src = orig;
-    ctx.eflags.update_flags_add_U32(orig, add, res);
+    ctx.eflags.update_flags_add_U32<Needed>(orig, add, res);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD16_ATOMIC(uintptr_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
 {
     uint16_t add = src;
     uint16_t orig = X86_ATOMIC_XADD_U16(addr, add);
     src = orig;
-    ctx.eflags.update_flags_add_U16(orig, add, uint16_t(orig + add));
+    ctx.eflags.update_flags_add_U16<Needed>(orig, add, uint16_t(orig + add));
 }
 
-template<bool Volatile = true>
+template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD16_MEM(uintptr_t addr, uint16_t& src, X86Context& ctx, uint8_t* base)
 {
     uint16_t add = src;
@@ -4149,18 +4147,19 @@ X86_FORCEINLINE void X86_XADD16_MEM(uintptr_t addr, uint16_t& src, X86Context& c
     uint16_t res = uint16_t(orig + add);
     X86_STORE_AS(uint16_t, Volatile, addr, res);
     src = orig;
-    ctx.eflags.update_flags_add_U16(orig, add, res);
+    ctx.eflags.update_flags_add_U16<Needed>(orig, add, res);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD8_ATOMIC(uintptr_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
 {
     uint8_t add = src;
     uint8_t orig = X86_ATOMIC_XADD_U8(addr, add);
     src = orig;
-    ctx.eflags.update_flags_add_U8(orig, add, uint8_t(orig + add));
+    ctx.eflags.update_flags_add_U8<Needed>(orig, add, uint8_t(orig + add));
 }
 
-template<bool Volatile = true>
+template<bool Volatile = true, uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD8_MEM(uintptr_t addr, uint8_t& src, X86Context& ctx, uint8_t* base)
 {
     uint8_t add = src;
@@ -4168,9 +4167,10 @@ X86_FORCEINLINE void X86_XADD8_MEM(uintptr_t addr, uint8_t& src, X86Context& ctx
     uint8_t res = uint8_t(orig + add);
     X86_STORE_AS(uint8_t, Volatile, addr, res);
     src = orig;
-    ctx.eflags.update_flags_add_U8(orig, add, res);
+    ctx.eflags.update_flags_add_U8<Needed>(orig, add, res);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD32(uint32_t& dst, uint32_t& src, X86Context& ctx)
 {
     uint32_t orig = dst;
@@ -4178,9 +4178,10 @@ X86_FORCEINLINE void X86_XADD32(uint32_t& dst, uint32_t& src, X86Context& ctx)
     uint32_t res = orig + add;
     src = orig;
     dst = res;
-    ctx.eflags.update_flags_add_U32(orig, add, res);
+    ctx.eflags.update_flags_add_U32<Needed>(orig, add, res);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD16(uint16_t& dst, uint16_t& src, X86Context& ctx)
 {
     uint16_t orig = dst;
@@ -4188,9 +4189,10 @@ X86_FORCEINLINE void X86_XADD16(uint16_t& dst, uint16_t& src, X86Context& ctx)
     uint16_t res = uint16_t(orig + add);
     src = orig;
     dst = res;
-    ctx.eflags.update_flags_add_U16(orig, add, res);
+    ctx.eflags.update_flags_add_U16<Needed>(orig, add, res);
 }
 
+template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>
 X86_FORCEINLINE void X86_XADD8(uint8_t& dst, uint8_t& src, X86Context& ctx)
 {
     uint8_t orig = dst;
@@ -4198,7 +4200,7 @@ X86_FORCEINLINE void X86_XADD8(uint8_t& dst, uint8_t& src, X86Context& ctx)
     uint8_t res = uint8_t(orig + add);
     src = orig;
     dst = res;
-    ctx.eflags.update_flags_add_U8(orig, add, res);
+    ctx.eflags.update_flags_add_U8<Needed>(orig, add, res);
 }
 
 template<uint32_t Needed = X86EFlags::ARITHMETIC_FLAGS>

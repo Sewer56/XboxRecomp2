@@ -1,6 +1,8 @@
 use super::super::prelude::*;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
+    let flags = ctx.flag_template(false);
+    let memory_flags = ctx.flag_template(true);
     let operands = ctx.insn.operands();
     if usize::from(ctx.insn.instruction().operand_count) < 2 {
         return ctx.missing_form();
@@ -24,17 +26,17 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         {
             cpp!(
                 ctx.out,
-                "X86_XADD{size}_ATOMIC({dst_ea}, {src_str}, ctx, base);"
+                "X86_XADD{size}_ATOMIC{flags}({dst_ea}, {src_str}, ctx, base);"
             );
         } else {
             cpp!(
                 ctx.out,
-                "X86_XADD{size}_MEM({dst_ea}, {src_str}, ctx, base);"
+                "X86_XADD{size}_MEM{memory_flags}({dst_ea}, {src_str}, ctx, base);"
             );
         }
     } else if let Some(dst_reg) = register(dst) {
         let dst_str = get_x86_reg(dst_reg);
-        cpp!(ctx.out, "X86_XADD{size}({dst_str}, {src_str}, ctx);");
+        cpp!(ctx.out, "X86_XADD{size}{flags}({dst_str}, {src_str}, ctx);");
     } else {
         ctx.missing_form();
     }

@@ -16,5 +16,6 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let dst_str = ctx.format_operand(dst, size_suffix);
     let src_str = ctx.format_operand(src, size_suffix);
     let size = src.size;
-    cpp!(ctx.out, "X86_BSF{size}({dst_str}, {src_str}, ctx);");
+    let flags = ctx.flag_template(false);
+    cpp!(ctx.out, "X86_BSF{size}{flags}({dst_str}, {src_str}, ctx);");
 }
