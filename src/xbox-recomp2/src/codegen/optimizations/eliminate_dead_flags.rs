@@ -98,6 +98,15 @@ mod tests {
         Setup::Plain,
         &[CpuFlag::CF],
     )]
+    #[case::xadd(
+        &[
+            0xF0, 0x0F, 0xC1, 0x01, //     lock xadd [ecx], eax
+            0x40,                   //     inc  eax        ; keeps CF
+            0xC3,                   //     ret
+        ],
+        Setup::Plain,
+        &[CpuFlag::CF],
+    )]
     #[case::lahf(
         &[
             0x01, 0xD8,             //     add  eax, ebx
