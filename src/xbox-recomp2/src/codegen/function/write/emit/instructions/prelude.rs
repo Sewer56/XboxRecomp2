@@ -6,6 +6,7 @@ pub(super) use super::super::{
     get_x86_reg_float, is_mm0_to_7, is_xmm0_to_7, mmx_index, operand_reg_value, operand_type_name,
     segment_equals, st_index, xmm_index,
 };
+pub(super) use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
 pub(super) use crate::decode::{
     DecodedOperand, DecodedOperandKind, InstructionAttributes, Mnemonic, OperandVisibility,
     Register, RegisterClass, immediate, memory, register,

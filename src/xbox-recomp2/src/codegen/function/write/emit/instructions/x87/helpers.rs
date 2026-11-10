@@ -8,7 +8,6 @@ pub(super) use fsubr::handle_fsubr;
 mod fsubr;
 
 pub(super) fn float_operations(ctx: &mut Emitter<'_>, sign: &'static str, op_size: u16) {
-    let fpu = ctx.fpu();
     let operands = ctx.insn.operands();
     let count = usize::from(ctx.insn.instruction().operand_count);
 
@@ -33,7 +32,7 @@ pub(super) fn float_operations(ctx: &mut Emitter<'_>, sign: &'static str, op_siz
 
     // Intel's manual leaves C0, C2 and C3 undefined after FADD, FSUB, FMUL
     // and FDIV, so we keep them.
-    cpp!(ctx.out, "{fpu}.sw &= ~X87FPU::C1;");
+    emit_status_clear(ctx, ConditionCodes::C1);
     emit_precision_flag(ctx);
     if result_in_st0 {
         emit_exception_flags(ctx, "val_double_0");
@@ -46,27 +45,30 @@ pub(super) fn float_operations(ctx: &mut Emitter<'_>, sign: &'static str, op_siz
     }
 }
 
-pub(super) fn handle_fcom(ctx: &mut Emitter<'_>, pop_count: i64) {
+pub(super) fn handle_fcom(ctx: &mut Emitter<'_>, pop_count: u8) {
     let fpu = ctx.fpu();
     let operands = ctx.insn.operands();
     let status = status_stack_template_argument(ctx);
 
     if memory(&operands[0]).is_some() {
-        if !matches!(operands[0].size, 32 | 64) {
-            ctx.missing_form();
-        } else if operands[0].size == 32 {
-            let addr = ctx.ea(&operands[0]);
-            cpp!(
-                ctx.out,
-                "{fpu}.compare_and_pop{status}(X86_LOAD_F32({addr}), {pop_count});"
-            );
+        let load = match operands[0].size {
+            32 => "X86_LOAD_F32",
+            64 => "X86_LOAD_F64",
+            _ => return ctx.missing_form(),
+        };
+        let addr = ctx.ea(&operands[0]);
+        if compare_unread(ctx) {
+            // The load is volatile, so it stays.
+            cpp!(ctx.out, "(void){load}({addr});");
+            emit_pops(ctx, pop_count);
         } else {
-            let addr = ctx.ea(&operands[0]);
             cpp!(
                 ctx.out,
-                "{fpu}.compare_and_pop{status}(X86_LOAD_F64({addr}), {pop_count});"
+                "{fpu}.compare_and_pop{status}({load}({addr}), {pop_count});"
             );
         }
+    } else if compare_unread(ctx) && register(&operands[0]).is_some() {
+        emit_pops(ctx, pop_count);
     } else if let Some(reg) = register(&operands[0]) {
         let st_idx = get_st_index(reg);
         cpp!(
@@ -141,7 +143,93 @@ pub(super) fn handle_fdivr(ctx: &mut Emitter<'_>) {
         let checked = stack_template_argument(ctx);
         cpp!(ctx.out, "{fpu}.pop{checked}();");
     }
-    cpp!(ctx.out, "{fpu}.sw &= ~X87FPU::C1;");
+    emit_status_clear(ctx, ConditionCodes::C1);
+}
+
+/// Clears the `cleared` condition codes that are read later.
+///
+/// e.g. `fpu.sw &= ~X87FPU::C1;`
+/// Writes nothing when `eliminate_dead_x87_status` found none are read.
+pub(super) fn emit_status_clear(ctx: &mut Emitter<'_>, cleared: ConditionCodes) {
+    let read = cleared & ctx.needed_status;
+    if read.is_empty() {
+        return;
+    }
+
+    let fpu = ctx.fpu();
+    let mask = status_mask(read);
+
+    cpp!(ctx.out, "{fpu}.sw &= ~{mask};");
+}
+
+/// The condition code lines for a trig instruction.
+///
+/// Returns `(clear, out_of_range)`, ready to paste into a `cpp!` template:
+///
+/// - `clear`: `fpu.sw &= ~X87FPU::C2;\n`
+/// - `out_of_range`: `fpu.sw |= X87FPU::C2; `
+///
+/// Each is empty when nothing reads its codes.
+pub(super) fn trig_status_lines(ctx: &Emitter<'_>, cleared: ConditionCodes) -> (String, String) {
+    let fpu = ctx.fpu();
+    let mut clear = String::new();
+    let mut out_of_range = String::new();
+
+    let read = cleared & ctx.needed_status;
+    if !read.is_empty() {
+        let mask = status_mask(read);
+        clear = format!("{fpu}.sw &= ~{mask};\n");
+    }
+
+    if ctx.needed_status.contains(ConditionCodes::C2) {
+        out_of_range = format!("{fpu}.sw |= X87FPU::C2; ");
+    }
+
+    (clear, out_of_range)
+}
+
+/// Condition codes as a C++ mask.
+///
+/// - `C1`: `X87FPU::C1`
+/// - `C1 | C2`: `(X87FPU::C1 | X87FPU::C2)`
+fn status_mask(codes: ConditionCodes) -> String {
+    let mut mask = String::new();
+
+    for (name, _) in codes.iter_names() {
+        if !mask.is_empty() {
+            mask.push_str(" | ");
+        }
+
+        mask.push_str("X87FPU::");
+        mask.push_str(name);
+    }
+
+    if codes.bits().count_ones() > 1 {
+        mask = format!("({mask})");
+    }
+
+    mask
+}
+
+/// Whether we can skip this compare, because nothing reads its condition codes.
+///
+/// e.g. `fucomp` becomes just `fpu.pop();`
+/// Callers still write its pops and any memory load.
+///
+/// Needs `fast_x87_status`.
+/// Without it the compare can also set the invalid-operation flag.
+pub(super) fn compare_unread(ctx: &Emitter<'_>) -> bool {
+    ctx.needed_status.is_empty() && ctx.config.speed_hacks.runs_fast_x87_status()
+}
+
+/// Writes `fpu.pop();` `pops` times.
+pub(super) fn emit_pops(ctx: &mut Emitter<'_>, pops: u8) {
+    let fpu = ctx.fpu();
+    let checked = stack_template_argument(ctx);
+
+    for _ in 0..pops {
+        cpp!(ctx.out, "{fpu}.pop{checked}();");
+    }
 }
 
 pub(super) fn emit_precision_flag(ctx: &mut Emitter<'_>) {

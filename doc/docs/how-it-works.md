@@ -136,16 +136,18 @@ debug = false                   # runtime diagnostics, enable till game stable.
 
 # Safe optimisations that improve performance without changing behaviour.
 [optimizations]
-enable = true                   # master toggle
-eliminate_return_slot = true    # don't put return addresses on the stack where possible
-eliminate_stack_args = true     # optimise away push+pop across function calls
-trust_callee_returns = false    # trust `ret N` to fix up the stack on function exit
-x87_lowering = true             # keep x87 values in C variables
-eliminate_dead_flags = true     # compute only flags later instructions read
-fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
-find_ebp_frames = true          # let nonvolatile_stack cover [ebp+N] where safe
-idiv32_after_cdq = true         # 32-bit divide for `idiv` after `cdq`
-find_string_direction = true    # skip the direction flag check in `rep movs` and co.
+enable = true                    # master toggle
+eliminate_return_slot = true     # don't put return addresses on the stack where possible
+eliminate_stack_args = true      # optimise away push+pop across function calls
+trust_callee_returns = false     # trust `ret N` to fix up the stack on function exit
+optimize_x87 = true              # speed up x87 code
+optimize_mmx = true              # keep MMX registers in a local array
+eliminate_dead_x87_status = true # skip x87 C0-C3 writes nothing reads
+eliminate_dead_flags = true      # compute only flags later instructions read
+fuse_compare_branch = true       # turn cmp + jump into a plain `if (a < b)`
+find_ebp_frames = true           # let nonvolatile_stack cover [ebp+N] where safe
+idiv32_after_cdq = true          # 32-bit divide for `idiv` after `cdq`
+find_string_direction = true     # skip the direction flag check in `rep movs` and co.
 
 # Hacks that sacrifice accuracy for speed. Usually safe.
 # But test your recomp without, before testing with.
@@ -163,6 +165,12 @@ fast_x87_status = true
 # Don't check for x87 stack overflow and underflow.
 # Side effect: Only buggy compiler output over- or underflows the stack, it'll go unnoticed.
 fast_x87_stack = true
+
+# Treat `ffree st(n-1)` down to `ffree st0`, back to back, as pops.
+# Side effect: The x87 `top` field differs from real hw.
+#              Only code reading the raw status word or saved FPU state would notice.
+#              So basically no code in practical cases.
+fast_x87_ffree = true
 
 # FSCALE uses a 64-bit path instead of 80-bit.
 # Side effect: Huge scales (beyond 2^±1022) give wrong results.
@@ -208,6 +216,33 @@ rep_memmove_memset = true
 #              Other calls we do trace correctly.
 clobber_eflags_for_unknown_code = true
 
+# Extra hints for the optimisation passes.
+# Danger: Only add if you know what you're doing. (can read ASM)
+#
+# - Missing hints only cost speed
+# - Wrong hints break the game.
+[optimization_hints]
+
+# Info about x87 stack upon entering a function.
+#
+# Almost all x87 code on OG Xbox enters functions with empty x87 stack,
+# as MSVC passes parameters either via stack (usual), or registers.
+#
+# But in very rare cases, parameters are passed via the x87 stack; such as
+# in CRT code.
+#
+# Sometimes in this code, we can't analyse it fully due to instructions
+# we forbid in analysis like FFREE/FXRSTOR; or other limitations.
+#
+# This allows you to set overrides.
+x87_stack_effects = [
+  {
+    address = 0x37DF64, # _CIpow
+    stack_at_entry = 2, # items on the x87 stack at function entry (its parameters)
+    stack_at_exit = 1,  # items on the x87 stack at function exit (0, or 1 for a float result)
+  },
+]
+
 [fixes]
 functions = [                   # add any missed functions here
   { address = 0x1000, size = 0x50 },
@@ -250,6 +285,7 @@ Stubbed: the real file lists hundreds of functions and hooks.
     - `banned_addresses`
     - `invalid_instructions`
     - `function_hooks`
+    - `x87_stack_effects`
     - `midasm_hook`
     - `switch` etc.
 

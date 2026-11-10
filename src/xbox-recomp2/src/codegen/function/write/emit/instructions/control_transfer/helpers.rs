@@ -59,6 +59,7 @@ pub(in super::super) fn print_conditional_branch_with(
         if let Some(before) = before {
             cpp!(ctx.out, "{before}");
         }
+        ctx.x87_local_to_ctx();
         print_function_call_addr(ctx, target, false);
         cpp!(ctx.out, "return;");
         ctx.out.dedent();

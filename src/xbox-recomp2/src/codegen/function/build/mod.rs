@@ -11,6 +11,7 @@ use super::model::{
     GuestOp, Hook, Op, Return,
 };
 use crate::analysis::{Function, FunctionBody};
+use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
 use crate::codegen::optimizations::helpers::stack_frame::STACK_WORD_BYTES;
 use crate::config::{FunctionAddress, RecompilerConfig};
 use crate::decode::{DecodeBuffer, Decoder, Mnemonic, immediate};
@@ -111,17 +112,30 @@ pub(super) fn build(
     model.blocks.shrink_to_fit();
 
     // Finally get all the hooks and their info.
+    let local_targets = model.local_targets();
     model.hooks = pass
         .hook_addresses
         .into_iter()
-        .filter(|&address| {
-            config
-                .midasm_hooks
-                .get(FunctionAddress(address.get()))
-                .is_some()
+        .filter_map(|address| {
+            let hook = config.midasm_hooks.get(FunctionAddress(address.get()))?;
+            let jumps = [
+                hook.jump_address,
+                hook.jump_address_on_true,
+                hook.jump_address_on_false,
+            ]
+            .into_iter()
+            .map(GuestAddress32::from)
+            .filter(|&target| !target.is_zero() && local_targets.contains(target))
+            .collect();
+
+            Some(Hook {
+                address,
+                may_return: hook.ret || hook.return_on_true || hook.return_on_false,
+                jumps,
+            })
         })
-        .map(|address| Hook { address })
         .collect();
+
     model.hooks.shrink_to_fit();
     model
 }
@@ -170,6 +184,7 @@ fn add_step(
                 rewritten: false,
                 needed_flags: ALL_ARITHMETIC_FLAGS,
                 direction: DirectionFlag::Unknown,
+                needed_status: ConditionCodes::all(),
             };
             if insn.mnemonic() == Mnemonic::CALL {
                 // We can do some optimisations around CALLs

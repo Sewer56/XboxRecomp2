@@ -6,8 +6,10 @@
 //! See `needed-flags.md` for more info.
 
 use super::flag_boundaries::FlagBoundaries;
-use crate::codegen::function::model::{ControlFlow, Edge, FunctionModel};
+use super::op_graph::{Edge, OpIndex};
+use crate::codegen::function::model::FunctionModel;
 use crate::decode::CpuFlag;
+use crate::utils::flat_lists::{FlatLists, FlatListsBuilder};
 use graph::{FlagGraph, Solution, leaving};
 
 pub(in crate::codegen) mod graph;
@@ -20,10 +22,7 @@ pub(in crate::codegen::optimizations) struct NeededFlags {
 
     /// Flags needed on each path out of each operation.
     /// Can read all jump targets at once with [`NeededFlags::on_edges`].
-    pub live_on_edges: Vec<CpuFlag>,
-
-    /// The flow these results describe.
-    pub flow: ControlFlow,
+    live_on_edges: FlatLists<CpuFlag>,
 }
 
 impl NeededFlags {
@@ -36,32 +35,29 @@ impl NeededFlags {
         model: &FunctionModel,
         boundaries: &FlagBoundaries,
     ) -> Option<Self> {
-        let graph = FlagGraph::new(model)?;
+        let flags = FlagGraph::new(model)?;
         let at_return = boundaries.at_return(model.address.0.into());
         let flag_summary = |target| boundaries.flag_summary(target);
         let mut solution = Solution::default();
-        graph.walk(at_return, flag_summary, &mut solution);
+        flags.walk(at_return, flag_summary, &mut solution);
 
         // Work out what each path out of each operation needs.
         //
         // je  skip     ; taken:     SF  <- sets needs SF
         //              ; not taken: CF  <- adc needs CF
-        let flow = graph.into_flow();
-        let mut live_on_edges = vec![CpuFlag::empty(); flow.edges_len()];
-        for index in 0..flow.len() {
-            let range = flow.edge_range(index);
-            for (slot, edge) in live_on_edges[range].iter_mut().zip(flow.edges(index)) {
-                *slot = match *edge {
-                    Edge::Op(next) => solution.live_before[next as usize],
-                    edge => leaving(edge, at_return, &flag_summary),
-                };
-            }
+        let graph = flags.graph();
+        let mut live_on_edges = FlatListsBuilder::with_capacity(graph.len(), graph.edges_len());
+        for index in 0..graph.len() {
+            let edges = graph.edges(index).iter();
+            live_on_edges.push(edges.map(|&edge| match edge {
+                Edge::Op(next) => solution.live_before[next as usize],
+                edge => leaving(edge, at_return, &flag_summary),
+            }));
         }
 
         Some(Self {
             live_after: solution.live_after,
-            live_on_edges,
-            flow,
+            live_on_edges: live_on_edges.build(),
         })
     }
 
@@ -73,13 +69,15 @@ impl NeededFlags {
     ///
     /// # Returns
     ///
-    /// One entry per path, in [`ControlFlow::edges`] order.
+    /// One entry per path, in [`OpGraph::edges`] order.
     ///
     /// e.g. If we have a conditional jump like `je skip`, then there
     /// will be two results
     /// - taken
     /// - nyot~ taken
-    pub(in crate::codegen::optimizations) fn on_edges(&self, index: usize) -> &[CpuFlag] {
-        &self.live_on_edges[self.flow.edge_range(index)]
+    ///
+    /// [`OpGraph::edges`]: super::op_graph::OpGraph::edges
+    pub(in crate::codegen::optimizations) fn on_edges(&self, index: OpIndex) -> &[CpuFlag] {
+        self.live_on_edges.get(index)
     }
 }

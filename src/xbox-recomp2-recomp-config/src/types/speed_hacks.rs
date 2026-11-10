@@ -20,6 +20,15 @@ pub struct SpeedHacks {
     /// Don't check for x87 stack overflow and underflow.
     pub fast_x87_stack: bool,
 
+    /// Treat `ffree` to work as a `pop` when possible.
+    ///
+    /// Benefits:
+    /// - Speed!
+    ///
+    /// Side effects:
+    /// - `top` can differ from real hw (x87 is a circular buffer).
+    pub fast_x87_ffree: bool,
+
     /// FSCALE uses a 64-bit path instead of 80-bit.
     /// Scales beyond 2^±1022 give wrong results.
     pub fast_fscale: bool,
@@ -63,6 +72,11 @@ impl SpeedHacks {
     /// Do we skip the x87 stack overflow and underflow checks?
     pub fn runs_fast_x87_stack(&self) -> bool {
         self.enabled && self.fast_x87_stack
+    }
+
+    /// Do we treat `ffree` as a `pop` when possible?
+    pub fn runs_fast_x87_ffree(&self) -> bool {
+        self.enabled && self.fast_x87_ffree
     }
 
     /// Does FSCALE use the 64-bit path instead of 80-bit?
@@ -113,6 +127,7 @@ impl Default for SpeedHacks {
             fast_trig: true,
             fast_x87_status: true,
             fast_x87_stack: true,
+            fast_x87_ffree: true,
             fast_fscale: true,
             fast_sse_status: true,
             nonvolatile_stack: true,
@@ -139,6 +154,7 @@ mod tests {
             SpeedHacks::runs_fast_trig,
             SpeedHacks::runs_fast_x87_status,
             SpeedHacks::runs_fast_x87_stack,
+            SpeedHacks::runs_fast_x87_ffree,
             SpeedHacks::runs_fast_fscale,
             SpeedHacks::runs_fast_sse_status,
             SpeedHacks::runs_nonvolatile_stack,
@@ -159,6 +175,7 @@ mod tests {
             fast_trig: own_switch,
             fast_x87_status: own_switch,
             fast_x87_stack: own_switch,
+            fast_x87_ffree: own_switch,
             fast_fscale: own_switch,
             fast_sse_status: own_switch,
             nonvolatile_stack: own_switch,

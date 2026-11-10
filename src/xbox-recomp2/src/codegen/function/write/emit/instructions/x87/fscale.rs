@@ -1,4 +1,5 @@
 use super::super::prelude::*;
+use super::helpers::emit_status_clear;
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let fpu = ctx.fpu();
@@ -11,11 +12,6 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         (true, true) => "<false, false>",
     };
     // Intel's manual leaves C0, C2 and C3 undefined after FSCALE, so we keep them.
-    cpp!(
-        ctx.out,
-        "
-        {fpu}.sw &= ~X87FPU::C1;
-        X87_FSCALE{template}({fpu});
-    "
-    );
+    emit_status_clear(ctx, ConditionCodes::C1);
+    cpp!(ctx.out, "X87_FSCALE{template}({fpu});");
 }

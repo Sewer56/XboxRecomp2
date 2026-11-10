@@ -16,11 +16,11 @@ use crate::decode::{DISASM_BUFFER_SIZE, DecodeBuffer, Decoder, DisasmFormatter};
 use crate::executable::Executable;
 use crate::platform::GuestPlatform;
 use crate::templates::{SUB_NAME, render};
-use model::FunctionModel;
+use model::{FunctionModel, X87Plan};
 use std::borrow::Cow;
 use std::io::Write;
 use write::emit::CodeWriter;
-pub(in crate::codegen) use write::supports_addressing;
+pub(in crate::codegen) use write::{has_emitter, supports_addressing};
 use xbox_recomp2_executable::GuestAddress32;
 
 mod build;
@@ -53,6 +53,9 @@ struct GenerationContext<'a> {
 
     /// Address of the function's first byte.
     base: GuestAddress32,
+
+    /// How to write the function's x87 code.
+    x87: &'a X87Plan,
 }
 
 impl FunctionScratch {
@@ -124,6 +127,7 @@ pub(crate) fn write_function(
         config,
         platform,
         base,
+        x87: &model.x87,
     };
     write::write(&context, model, &name, scratch, state, out);
 }

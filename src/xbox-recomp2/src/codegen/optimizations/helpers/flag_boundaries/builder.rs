@@ -2,11 +2,12 @@
 
 use super::FlagBoundaries;
 use crate::analysis::{FunctionDiscoverySource, FunctionGraph};
-use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, Edge, FunctionAbi, FunctionModel, Op};
+use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, FunctionAbi, FunctionModel, Op};
 use crate::codegen::optimizations::helpers::flag_summary::FlagSummary;
 use crate::codegen::optimizations::helpers::known_callers::{direct_call_target, is_code_source};
 use crate::codegen::optimizations::helpers::model_index::ModelIndex;
 use crate::codegen::optimizations::helpers::needed_flags::graph::{FlagGraph, Solution};
+use crate::codegen::optimizations::helpers::op_graph::Edge;
 use crate::codegen::optimizations::helpers::workqueue::WorkQueue;
 use crate::decode::CpuFlag;
 use std::collections::BTreeMap;
@@ -241,27 +242,21 @@ fn call_sites(
     address_to_index: &BTreeMap<GuestAddress32, ModelIndex>,
 ) -> Vec<CallSite> {
     let mut found = Vec::new();
-    let flow = graph.map(FlagGraph::flow);
+    let graph = graph.map(FlagGraph::graph);
     let ops = model.blocks.iter().flat_map(|block| &block.ops);
 
     // Iterate each instruction.
     for (position, op) in ops.enumerate() {
-        let site = match op {
-            Op::Guest(guest) => guest.address,
-            Op::Call(call) => call.guest.address,
-            Op::Return(ret) => ret.guest.address,
-            Op::CdqIdiv(idiv) => idiv.guest.address,
-            Op::MergedCmpJmp(_) => {
-                unreachable!(
-                    "Did you do a fucky-wucky with the code?
-                    This should run before MergedCmpJmp optimisation ❌.
-                    Nyot after.
-                    
-                    WhAt DiD YoU Do?"
-                )
-            }
-            Op::Failed { address, .. } => *address,
-        };
+        if let Op::MergedCmpJmp(_) = op {
+            unreachable!(
+                "Did you do a fucky-wucky with the code?
+                This should run before MergedCmpJmp optimisation ❌.
+                Nyot after.
+                
+                WhAt DiD YoU Do?"
+            )
+        }
+        let site = op.address();
 
         // Direct calls.
         if let Op::Call(call) = op
@@ -279,8 +274,8 @@ fn call_sites(
         }
 
         // Direct jumps out of the function.
-        let Some(flow) = flow else { continue };
-        for edge in flow.edges(position) {
+        let Some(graph) = graph else { continue };
+        for edge in graph.edges(position) {
             if let Edge::Function(target) = *edge
                 && let Some(&callee) = address_to_index.get(&target)
             {

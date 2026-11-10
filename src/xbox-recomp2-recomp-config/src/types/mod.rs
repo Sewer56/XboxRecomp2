@@ -3,6 +3,7 @@
 pub use address_map::AddressMap;
 use derive_more::{From, Into};
 pub use midasm_hook::MidAsmHook;
+pub use optimization_hints::{OptimizationHints, X87StackEffect};
 pub use optimizations::Optimizations;
 pub use register::{Register, RegisterIndexError};
 pub use speed_hacks::SpeedHacks;
@@ -11,6 +12,7 @@ pub use switch_table::SwitchTable;
 
 pub mod address_map;
 pub mod midasm_hook;
+pub mod optimization_hints;
 pub mod optimizations;
 pub mod register;
 pub mod speed_hacks;
@@ -76,6 +78,10 @@ pub struct RecompilerConfig {
     // ── [speed_hacks] ────────────────────────────────────────────────────────
     /// Which speed hacks run.
     pub speed_hacks: SpeedHacks,
+
+    // ── [optimization_hints] ─────────────────────────────────────────────────
+    /// Stuff the optimisation passes can't work out alone.
+    pub optimization_hints: OptimizationHints,
 
     // ── Top-level [[switch]] ─────────────────────────────────────────────────
     /// Switch tables set in configuration.

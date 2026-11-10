@@ -193,7 +193,8 @@ mod tests {
     use crate::codegen::optimizations;
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, executable, model_of};
     use crate::codegen::run_state::RunState;
-    use crate::config::{Optimizations, RecompilerConfig, SpeedHacks};
+    use crate::config::{OptimizationHints, Optimizations, RecompilerConfig, SpeedHacks};
+    use crate::executable::ImportMap;
     use ahash::HashSet;
     use core::slice;
     use rstest::rstest;
@@ -222,6 +223,8 @@ mod tests {
         optimizations::run(
             slice::from_mut(&mut model),
             &FunctionGraph::default(),
+            &ImportMap::default(),
+            &OptimizationHints::default(),
             &switches,
             hacks,
             &mut Vec::new(),
@@ -241,6 +244,7 @@ mod tests {
             config: &config,
             platform: &PlainPlatform,
             base: model.address.0.into(),
+            x87: &model.x87,
         };
 
         // Ignore failures.

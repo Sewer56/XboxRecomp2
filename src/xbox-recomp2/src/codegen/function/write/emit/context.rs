@@ -1,8 +1,9 @@
 //! All the context you need to turn one instruction into C++.
 
-use super::{CodeWriter, operands};
+use super::{CodeWriter, cpp, operands};
 use crate::analysis::LocalTargets;
-use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
+use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag, X87Sync};
+use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
 use crate::config::RecompilerConfig;
 use crate::decode::{CpuFlag, DecodedOperand, Insn};
 use crate::executable::{ImportMap, SwitchTable, SymbolTable};
@@ -26,6 +27,9 @@ pub(in crate::codegen::function::write) struct Emitter<'a> {
 
     /// Value of DF at this instruction, if known.
     pub direction: DirectionFlag,
+
+    /// x87 condition codes observable after this instruction.
+    pub needed_status: ConditionCodes,
 
     /// The program's functions.
     pub symbols: &'a SymbolTable,
@@ -89,6 +93,9 @@ pub(in crate::codegen::function::write) struct FunctionState {
 
     /// Whether `[ebp+N]` always points into this function's stack frame.
     pub ebp_frame: bool,
+
+    /// The x87 syncs around the instruction being written.
+    pub x87_sync: X87Sync,
 }
 
 impl FunctionState {
@@ -138,6 +145,43 @@ impl Emitter<'_> {
             format!("{}[{index}]", self.mmx())
         } else {
             format!("MMX_REG({index})")
+        }
+    }
+
+    /// Copies the local x87 copy back to `ctx.fpu`.
+    ///
+    /// Used right before C++ that leaves the function:
+    /// - a `call`
+    /// - a `ret`
+    /// - a tail-call `jmp`
+    /// - the leaving path of a conditional jump
+    pub fn x87_local_to_ctx(&mut self) {
+        if let Some(depth) = self.function_state.x87_sync.local_to_ctx {
+            cpp!(self.out, "x87_out<{depth}>(ctx.fpu, fpu);");
+        }
+    }
+
+    /// Reloads the local x87 copy from `ctx.fpu`.
+    ///
+    /// Used right after C++ that calls:
+    /// - a direct `call`
+    /// - a `call` through an import
+    /// - an indirect `call`, like `call eax`
+    ///
+    /// Writes:
+    /// - `x87_in<N>(fpu, ctx.fpu)` with a local copy.
+    /// - `X87_ASSUME_DEPTH(ctx.fpu, N)` without one, since x87 code already
+    ///   runs on `ctx.fpu`.
+    pub fn x87_ctx_to_local(&mut self) {
+        let depth = match self.function_state.x87_sync.ctx_to_local {
+            Some(depth) => depth,
+            None => return,
+        };
+
+        if self.function_state.local_fpu {
+            cpp!(self.out, "x87_in<{depth}>(fpu, ctx.fpu);");
+        } else {
+            cpp!(self.out, "X87_ASSUME_DEPTH(ctx.fpu, {depth});");
         }
     }
 

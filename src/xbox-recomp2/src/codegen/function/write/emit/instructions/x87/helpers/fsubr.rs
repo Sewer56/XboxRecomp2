@@ -1,7 +1,7 @@
 //! Code shared by `fsubr` and `fsubrp`.
 
 use super::super::super::prelude::*;
-use super::{emit_st0_exception_flags, stack_template_argument};
+use super::{emit_st0_exception_flags, emit_status_clear, stack_template_argument};
 
 pub(in super::super) fn handle_fsubr(ctx: &mut Emitter<'_>) {
     let fpu = ctx.fpu();
@@ -34,7 +34,7 @@ pub(in super::super) fn handle_fsubr(ctx: &mut Emitter<'_>) {
     }
 
     // Intel's manual leaves C0, C2 and C3 undefined after FSUBR, so we keep them.
-    cpp!(ctx.out, "{fpu}.sw &= ~X87FPU::C1;");
+    emit_status_clear(ctx, ConditionCodes::C1);
     emit_st0_exception_flags(ctx);
 
     if is_pop_version {

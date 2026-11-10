@@ -24,8 +24,14 @@ pub struct Optimizations {
     /// Used by passes that track the stack across calls.
     pub trust_callee_returns: bool,
 
-    /// Translate x87 instructions to C, avoiding expensive FPU stack emulation.
-    pub x87_lowering: bool,
+    /// Speed up x87 code.
+    pub optimize_x87: bool,
+
+    /// Keep MMX registers in a local array to enable more clang optimisations.
+    pub optimize_mmx: bool,
+
+    /// Skip x87 C0-C3 status writes that nothing reads.
+    pub eliminate_dead_x87_status: bool,
 
     /// Only compute the eflags that later instructions actually read.
     pub eliminate_dead_flags: bool,
@@ -58,7 +64,9 @@ impl Optimizations {
             eliminate_return_slot: false,
             eliminate_stack_args: false,
             trust_callee_returns: false,
-            x87_lowering: false,
+            optimize_x87: false,
+            optimize_mmx: false,
+            eliminate_dead_x87_status: false,
             eliminate_dead_flags: false,
             fuse_compare_branch: false,
             find_ebp_frames: false,
@@ -88,8 +96,18 @@ impl Optimizations {
     }
 
     /// Are we allowed to lower x87 code to C?
-    pub fn runs_x87_lowering(&self) -> bool {
-        self.enabled && self.x87_lowering
+    pub fn runs_optimize_x87(&self) -> bool {
+        self.enabled && self.optimize_x87
+    }
+
+    /// May MMX registers live in a local array?
+    pub fn runs_optimize_mmx(&self) -> bool {
+        self.enabled && self.optimize_mmx
+    }
+
+    /// May we skip x87 C0-C3 writes nothing reads?
+    pub fn runs_eliminate_dead_x87_status(&self) -> bool {
+        self.enabled && self.eliminate_dead_x87_status
     }
 
     /// Are we allowed to compute only the flags later instructions read?
@@ -120,7 +138,9 @@ impl Default for Optimizations {
             eliminate_return_slot: true,
             eliminate_stack_args: true,
             trust_callee_returns: false,
-            x87_lowering: true,
+            optimize_x87: true,
+            optimize_mmx: true,
+            eliminate_dead_x87_status: true,
             eliminate_dead_flags: true,
             fuse_compare_branch: true,
             find_ebp_frames: true,
@@ -161,7 +181,9 @@ mod tests {
             Optimizations::runs_eliminate_return_slot,
             Optimizations::runs_eliminate_stack_args,
             Optimizations::runs_trust_callee_returns,
-            Optimizations::runs_x87_lowering,
+            Optimizations::runs_optimize_x87,
+            Optimizations::runs_optimize_mmx,
+            Optimizations::runs_eliminate_dead_x87_status,
             Optimizations::runs_fuse_compare_branch,
             Optimizations::runs_eliminate_dead_flags,
             Optimizations::runs_find_ebp_frames,
@@ -179,7 +201,9 @@ mod tests {
             eliminate_return_slot: own_switch,
             eliminate_stack_args: own_switch,
             trust_callee_returns: own_switch,
-            x87_lowering: own_switch,
+            optimize_x87: own_switch,
+            optimize_mmx: own_switch,
+            eliminate_dead_x87_status: own_switch,
             eliminate_dead_flags: own_switch,
             fuse_compare_branch: own_switch,
             find_ebp_frames: own_switch,

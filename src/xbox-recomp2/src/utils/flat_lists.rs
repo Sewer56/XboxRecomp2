@@ -56,11 +56,6 @@ impl<T> FlatLists<T> {
         start..end
     }
 
-    /// Number of lists.
-    pub(crate) fn list_count(&self) -> usize {
-        self.starts.len() - 1
-    }
-
     /// Number of items across all lists.
     pub(crate) fn item_count(&self) -> usize {
         self.items.len()
@@ -122,7 +117,6 @@ mod tests {
         assert_eq!(flat.range(3), 2..4);
         assert!(flat.get(0).is_empty());
         assert_eq!(flat.get(3), [1, 2]);
-        assert_eq!(flat.list_count(), 5);
         assert_eq!(flat.item_count(), 5);
     }
 }

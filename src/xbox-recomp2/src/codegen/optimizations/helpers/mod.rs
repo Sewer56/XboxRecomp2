@@ -33,6 +33,10 @@
 //!
 //! - [`model_index`]: a function's position in the model list.
 //!
+//! Walking one function's ops:
+//!
+//! - [`op_graph`]: its ops, where each can go next, and where its hooks go.
+//!
 //! Single instructions, used by the helpers above:
 //!
 //! - [`instruction`]: which registers an instruction touches, etc.
@@ -47,6 +51,7 @@ pub(in crate::codegen) mod instruction;
 pub(in crate::codegen) mod known_callers;
 pub(in crate::codegen) mod model_index;
 pub(in crate::codegen) mod needed_flags;
+pub(in crate::codegen) mod op_graph;
 pub(in crate::codegen) mod stack_arguments;
 pub(in crate::codegen) mod stack_frame;
 pub(in crate::codegen) mod stack_shift;

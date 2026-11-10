@@ -1,6 +1,6 @@
 //! Resolves labels and blocks to instruction indices.
 
-use super::super::{Exit, FunctionModel};
+use crate::codegen::function::model::{Exit, FunctionModel};
 use std::collections::BTreeMap;
 use xbox_recomp2_executable::GuestAddress32;
 

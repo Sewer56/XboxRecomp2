@@ -1,5 +1,5 @@
 use super::super::prelude::*;
-use super::helpers::{emit_exception_flags, emit_precision_flag};
+use super::helpers::{emit_exception_flags, emit_precision_flag, emit_status_clear};
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let fpu = ctx.fpu();
@@ -19,9 +19,9 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         "
         val_double_0 = {fpu}.st0() + (x87_float)({int_type}){load}({addr});
         {fpu}.st0() = val_double_0;
-        {fpu}.sw &= ~X87FPU::C1;
     "
     );
+    emit_status_clear(ctx, ConditionCodes::C1);
     emit_precision_flag(ctx);
     emit_exception_flags(ctx, "val_double_0");
 }

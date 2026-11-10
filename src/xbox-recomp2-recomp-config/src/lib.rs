@@ -5,8 +5,9 @@ use std::fs::read;
 use std::io;
 use std::path::Path;
 pub use types::{
-    AddressMap, FunctionAddress, FunctionSize, InvalidInstructionSize, MidAsmHook, Optimizations,
-    RecompilerConfig, Register, RegisterIndexError, SpeedHacks, SwitchTable,
+    AddressMap, FunctionAddress, FunctionSize, InvalidInstructionSize, MidAsmHook,
+    OptimizationHints, Optimizations, RecompilerConfig, Register, RegisterIndexError, SpeedHacks,
+    SwitchTable, X87StackEffect,
 };
 
 mod parse;

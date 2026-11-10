@@ -3,10 +3,11 @@
 //! See "How it works" in `needed-flags.md`.
 
 use super::predecessors::Predecessors;
-use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, ControlFlow, Edge, FunctionModel, Op};
+use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, FunctionModel, Op};
 use crate::codegen::optimizations::helpers::flag_summary::FlagSummary;
-use crate::codegen::optimizations::helpers::instruction::flag_effects::EFlagEffects;
+use crate::codegen::optimizations::helpers::instruction::effects::eflags::EFlagEffects;
 use crate::codegen::optimizations::helpers::known_callers::direct_call_target;
+use crate::codegen::optimizations::helpers::op_graph::{Edge, OpGraph, OpIndex};
 use crate::codegen::optimizations::helpers::workqueue::WorkQueue;
 use crate::decode::CpuFlag;
 use xbox_recomp2_executable::GuestAddress32;
@@ -18,16 +19,12 @@ use xbox_recomp2_executable::GuestAddress32;
 /// Build it once, then call [`FlagGraph::walk`] for each set of assumptions
 /// about callers and callees.
 pub(in crate::codegen) struct FlagGraph<'a> {
-    model: &'a FunctionModel,
-    flow: ControlFlow,
+    graph: OpGraph<'a>,
     predecessors: Predecessors,
 
     /// What each operation reads and writes.
     /// Calls and returns are placeholders; [`FlagGraph::step`] fills them in.
     fixed: Vec<EFlagEffects>,
-
-    /// See [`hooked_ops`].
-    hooked: Vec<bool>,
 }
 
 /// The results of [`FlagGraph::walk`].
@@ -63,14 +60,12 @@ impl<'a> FlagGraph<'a> {
     pub(in crate::codegen) fn new(model: &'a FunctionModel) -> Option<Self> {
         // Find where each operation can go next.
         // Each path out of a branch can need different flags.
-        let flow = ControlFlow::new(model)?;
-        let predecessors = Predecessors::new(flow.len(), local_edges(&flow));
-        let hooked = hooked_ops(model);
-        let fixed = model
-            .blocks
+        let graph = OpGraph::new(model)?;
+        let predecessors = Predecessors::new(graph.len(), local_edges(&graph));
+        let fixed = graph
+            .ops
             .iter()
-            .flat_map(|block| &block.ops)
-            .map(|op| match op {
+            .map(|&op| match op {
                 Op::Guest(guest) => EFlagEffects::of(&guest.insn),
                 Op::CdqIdiv(idiv) => EFlagEffects::of(&idiv.guest.insn),
                 Op::MergedCmpJmp(pair) => EFlagEffects::of(&pair.compare.insn),
@@ -80,27 +75,20 @@ impl<'a> FlagGraph<'a> {
             .collect();
 
         Some(Self {
-            model,
-            flow,
+            graph,
             predecessors,
             fixed,
-            hooked,
         })
     }
 
-    /// The function's flow.
-    pub(in crate::codegen) fn flow(&self) -> &ControlFlow {
-        &self.flow
-    }
-
-    /// The function's flow, without the rest of the graph.
-    pub(super) fn into_flow(self) -> ControlFlow {
-        self.flow
+    /// The function's ops, and where each can go next.
+    pub(in crate::codegen::optimizations) fn graph(&self) -> &OpGraph<'a> {
+        &self.graph
     }
 
     /// Flags needed when the function starts, according to `solution`.
     pub(in crate::codegen) fn entry(&self, solution: &Solution) -> CpuFlag {
-        solution.live_before[self.flow.entry as usize]
+        solution.live_before[self.graph.entry as usize]
     }
 
     /// Works out the flags needed before and after each operation.
@@ -117,13 +105,13 @@ impl<'a> FlagGraph<'a> {
         flag_summary: impl Fn(Option<GuestAddress32>) -> FlagSummary,
         solution: &mut Solution,
     ) {
-        let ops = self.model.blocks.iter().flat_map(|block| &block.ops);
+        let ops = self.graph.ops.iter();
         let steps: Vec<_> = ops
             .enumerate()
-            .map(|(index, op)| self.step(index, op, at_return, &flag_summary))
+            .map(|(index, &op)| self.step(index, op, at_return, &flag_summary))
             .collect();
 
-        let count = self.flow.len();
+        let count = self.graph.len();
         solution.live_before.clear();
         solution.live_before.resize(count, CpuFlag::empty());
         solution.live_after.clear();
@@ -144,15 +132,13 @@ impl<'a> FlagGraph<'a> {
 
             // 1. Needed after: what anything next needs, plus what exits need.
             let mut after = step.exit_flags;
-            for edge in self.flow.edges(index) {
-                if let Edge::Op(next) = *edge {
-                    after |= solution.live_before[next as usize];
-                }
+            for &next in self.graph.op_targets(index) {
+                after |= solution.live_before[next as usize];
             }
             solution.live_after[index] = after;
 
             // 2. Needed before: needed after, minus writes, plus reads.
-            let before = (after & !step.effects.writes) | step.effects.reads;
+            let before = step.effects.needed_before(after);
 
             // 3. Recheck: if `before` changed, recheck whatever can run before this.
             if before == solution.live_before[index] {
@@ -169,13 +155,13 @@ impl<'a> FlagGraph<'a> {
     /// What the operation at `index` does with flags in this walk.
     fn step(
         &self,
-        index: usize,
+        index: OpIndex,
         op: &Op,
         at_return: CpuFlag,
         flag_summary: &impl Fn(Option<GuestAddress32>) -> FlagSummary,
     ) -> Step {
         let mut exit_flags = CpuFlag::empty();
-        for &edge in self.flow.edges(index) {
+        for &edge in self.graph.edges(index) {
             exit_flags |= leaving(edge, at_return, flag_summary);
         }
 
@@ -204,7 +190,7 @@ impl<'a> FlagGraph<'a> {
 
         // A hook runs first and gets `ctx`, so it can read every flag.
         // Pray to Aidios Clang can resolve it.
-        if self.hooked[index] {
+        if self.graph.hook(index).is_some() {
             effects.reads |= ALL_ARITHMETIC_FLAGS;
         }
 
@@ -229,27 +215,10 @@ pub(super) fn leaving(
     }
 }
 
-/// Whether a hook runs before each operation, across all blocks in order.
-fn hooked_ops(model: &FunctionModel) -> Vec<bool> {
-    model
-        .blocks
-        .iter()
-        .flat_map(|block| &block.ops)
-        .map(|op| model.hooks.iter().any(|hook| op.has_address(hook.address)))
-        .collect()
-}
-
 /// Each `(from, to)` pair where `to` can run right after `from`.
-fn local_edges(flow: &ControlFlow) -> impl Iterator<Item = (u32, u32)> + '_ {
-    (0..flow.len()).flat_map(move |index| {
-        local_targets(flow.edges(index)).map(move |target| (index as u32, target))
-    })
-}
-
-/// Where `edges` go inside the function.
-fn local_targets(edges: &[Edge]) -> impl Iterator<Item = u32> + '_ {
-    edges.iter().filter_map(|edge| match *edge {
-        Edge::Op(target) => Some(target),
-        _ => None,
+fn local_edges(graph: &OpGraph) -> impl Iterator<Item = (u32, u32)> {
+    (0..graph.len()).flat_map(move |index| {
+        let targets = graph.op_targets(index).iter();
+        targets.map(move |&target| (index as u32, target))
     })
 }

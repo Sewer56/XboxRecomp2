@@ -15,5 +15,6 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, ret: &Ret
             "ctx.esp.u32 += 0x{bytes:X};  //Adjust esp for return instruction"
         );
     }
+    ctx.x87_local_to_ctx();
     cpp!(ctx.out, "return;");
 }

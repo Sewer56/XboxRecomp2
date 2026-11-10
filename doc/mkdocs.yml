@@ -80,12 +80,14 @@ nav:
       - Overview: optimizations/index.md
       - Return Slot Elimination: optimizations/return-slot-elimination.md
       - Stack Argument Elimination: optimizations/stack-argument-elimination.md
-      - x87 Lowering: optimizations/x87-lowering.md
+      - x87: optimizations/x87.md
+      - MMX Locals: optimizations/mmx-locals.md
       - Merged Compare and Jump: optimizations/merge-compare-and-jump.md
       - Skip Unused Flags: optimizations/skip-unused-flags.md
       - Find EBP Frames: optimizations/find-ebp-frames.md
       - IDIV After CDQ: optimizations/idiv-after-cdq.md
       - Find String Direction: optimizations/find-string-direction.md
+      - Skip Unused x87 Status: optimizations/skip-unused-x87-status.md
 
   - Why I Wrote XboxRecomp2: why-i-wrote-xboxrecomp2.md
   - License: https://reloaded-project.github.io/Reloaded.MkDocsMaterial.Themes.R2/Pages/license.html

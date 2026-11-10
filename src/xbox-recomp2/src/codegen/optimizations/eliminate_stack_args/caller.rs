@@ -24,6 +24,7 @@ use crate::codegen::function::model::{
 };
 use crate::codegen::optimizations::helpers::call_setup::CallSetup;
 use crate::codegen::optimizations::helpers::entry_loads::EntryLoad;
+use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
 use crate::codegen::optimizations::helpers::instruction::register_access::RegisterAccess;
 use crate::codegen::optimizations::helpers::known_callers::direct_call_target;
 use crate::codegen::optimizations::helpers::stack_frame::STACK_WORD_BYTES;
@@ -129,6 +130,7 @@ fn rewrite(ops: &mut Vec<Op>, call: usize, function: &Called, setup: &CallSetup)
             rewritten: true,
             needed_flags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
+            needed_status: ConditionCodes::all(),
         })
     });
     ops.splice(call..call, moves);

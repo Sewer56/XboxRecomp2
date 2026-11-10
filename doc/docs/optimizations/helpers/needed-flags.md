@@ -218,26 +218,16 @@ You get:
 ```rust
 NeededFlags {
     live_after, // <- same as in Solution
-    live_on_edges: vec![
-        ZF | CF | SF, // [0] add  -> je
-        SF,           // [1] je   -> sets (taken)
-        CF,           // [2] je   -> adc  (not taken)
-        SF,           // [3] adc  -> sets
-                      //     skip:
-        none,         // [4] sets -> ret
+
+    // One list per instruction.
+    live_on_edges: [
+        [ZF | CF | SF], // 0: add  -> je
+        [SF, CF],       // 1: je   -> sets (taken), adc (not taken)
+        [SF],           // 2: adc  -> sets
+                        // skip:
+        [none],         // 3: sets -> ret
+        [],             // 4: ret  <- no entries
     ],
-    flow: ControlFlow {
-        // Indexed by instruction; each range is a slice of `live_on_edges`.
-        edge_ranges: vec![
-            0..1, // 0: add
-            1..3, // 1: je   <- [SF, CF]
-            3..4, // 2: adc
-                  // skip:
-            4..5, // 3: sets
-            5..5, // 4: ret  <- no entries
-        ],
-        ..
-    },
 }
 ```
 

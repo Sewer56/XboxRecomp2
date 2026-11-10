@@ -2,6 +2,7 @@
 //!
 //! See `flag-effects.md` for more info.
 
+use super::Effect;
 use crate::codegen::function::model::ALL_ARITHMETIC_FLAGS;
 use crate::codegen::function::supports_addressing;
 use crate::decode::{
@@ -9,25 +10,13 @@ use crate::decode::{
 };
 
 /// Eflags an instruction reads and writes.
-#[derive(Clone, Copy, Debug)]
-pub(in crate::codegen) struct EFlagEffects {
-    pub reads: CpuFlag,
-    pub writes: CpuFlag,
-}
+pub(in crate::codegen) type EFlagEffects = Effect<CpuFlag>;
 
 impl EFlagEffects {
     /// Reads all eflags and writes none.
     pub(in crate::codegen) const fn barrier() -> Self {
         Self {
             reads: ALL_ARITHMETIC_FLAGS,
-            writes: CpuFlag::empty(),
-        }
-    }
-
-    /// Reads and writes no eflags.
-    pub(in crate::codegen) const fn none() -> Self {
-        Self {
-            reads: CpuFlag::empty(),
             writes: CpuFlag::empty(),
         }
     }
