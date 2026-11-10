@@ -61,7 +61,7 @@ pub(super) fn decode_memory_operand_no_parentheses(mem: &MemoryInfo) -> String {
 /// # Arguments
 ///
 /// - `operand`: operand to read.
-/// - `native`: do `[reg+disp]` math in `uintptr_t`, for `native_sized_addresses`.
+/// - `native`: do `[reg+disp]` math in `uintptr_t` when `disp` is below 64 KB.
 ///
 /// # Returns
 ///
@@ -71,11 +71,12 @@ pub(super) fn decode_memory_operand_no_parentheses(mem: &MemoryInfo) -> String {
 /// # Examples
 ///
 /// ```text
-/// ea([esi+eax*4+8], _)   ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
-/// ea([ebx-0x10], false)  ->  "ctx.ebx.u32 - 0x10"
-/// ea([ebx-0x10], true)   ->  "static_cast<uintptr_t>(ctx.ebx.u32) - 0x10"
-/// ea([0x12345], _)       ->  "0x12345"
-/// ea(eax, _)             ->  ""
+/// ea([esi+eax*4+8], _)     ->  "ctx.esi.u32 + ctx.eax.u32 * 0x4 + 0x8"
+/// ea([ebx-0x10], false)    ->  "ctx.ebx.u32 - 0x10"
+/// ea([ebx-0x10], true)     ->  "static_cast<uintptr_t>(ctx.ebx.u32) - 0x10"
+/// ea([eax+0x462E08], true) ->  "ctx.eax.u32 + 0x462e08"
+/// ea([0x12345], _)         ->  "0x12345"
+/// ea(eax, _)               ->  ""
 /// ```
 pub(super) fn ea(operand: &DecodedOperand, native: bool) -> String {
     memory(operand).map_or_else(String::new, |mem| address_expression(mem, true, native))
@@ -261,5 +262,16 @@ fn address_expression(mem: &MemoryInfo, hex: bool, native: bool) -> String {
 
 /// Whether `native_sized_addresses` should widen `mem`.
 fn widens(mem: &MemoryInfo) -> bool {
-    mem.index == Register::NONE && mem.base.width(MODE) == 32
+    // Skip large displacements (0x10000).
+    // (This value was picked arbitrarily based on Xbox base address)
+    //
+    // ```asm
+    // mov eax, [0x0054DDDC]   ; eax = -1
+    // lea eax, [eax+eax*4]    ; eax = -5
+    // shl eax, 0x04           ; eax = -80 (0xFFFFFFB0)
+    // mov dl, [eax+0x462E08]  ; 32-bit: 0x462DB8, widened: 0x100462DB8 (out of bounds)
+    // ```
+    mem.index == Register::NONE
+        && mem.base.width(MODE) == 32
+        && mem.disp.displacement.unsigned_abs() < 0x10000
 }

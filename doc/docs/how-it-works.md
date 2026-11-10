@@ -197,11 +197,16 @@ lazy_cmov_load = true
 
 # Use native word size for guest addresses.
 # e.g. in `[esi+0x10]` treat 'esi' as `64-bit` on 64-bit systems.
-# Side effect: Usually safe to use, just beware this will break 64-bit wraps.
+# Side effect: Usually safe to use, just beware this will break 32-bit wraps.
 #              (e.g. `[eax-4]` with `eax = 0`) would underflow and produce wrong result.
 #              Xbox compiler would never emit this though.
 #
 #              (On Xbox, that's kernel space, you can't read it!)
+#
+# Edge case:
+#              In SUPER RARE cases we can have something like `[eax+0x462E08]`.
+#              Where eax is NEGATIVE. That's bad, and is an overflow.
+#              We therefore limit offsets to 0x10000 (Xbox base address - chosen arbitrarily).
 native_sized_addresses = true
 
 # Run `rep movs` and `rep stos` as memmove and memset.
