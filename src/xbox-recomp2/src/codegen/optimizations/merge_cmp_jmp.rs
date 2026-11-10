@@ -7,7 +7,7 @@
 
 use super::helpers::flag_boundaries::FlagBoundaries;
 use super::helpers::instruction::control_transfer::leaves_block;
-use super::helpers::instruction::flag_effects::EFlagEffects;
+use super::helpers::instruction::effects::eflags::EFlagEffects;
 use super::helpers::needed_flags::NeededFlags;
 use crate::codegen::function::model::{
     ALL_ARITHMETIC_FLAGS, BlockOpIndex, FunctionModel, GuestOp, Hook, MergedCmpJmp,

@@ -1418,16 +1418,16 @@ struct X87FPU
         }
     }
 
-    void flag_invalid() { sw |= C0 | C2; }  // For NaN/Invalid ops
-    void flag_divzero() { sw |= C0 | C3; }  // For x/0 cases
-    void flag_stackfault() { sw |= C0 | C1; }  // Stack overflow/underflow
+    X86_FORCEINLINE void flag_invalid() { sw |= C0 | C2; }  // For NaN/Invalid ops
+    X86_FORCEINLINE void flag_divzero() { sw |= C0 | C3; }  // For x/0 cases
+    X86_FORCEINLINE void flag_stackfault() { sw |= C0 | C1; }  // Stack overflow/underflow
 
     X86_FORCEINLINE void clear_flags()
     {
         sw &= ~(C0 | C1 | C2 | C3);
     }
 
-    void set_unordered() {
+    X86_FORCEINLINE void set_unordered() {
         sw |= C0 | C2 | C3; // Set for NaN comparisons
     }
 
@@ -1672,6 +1672,137 @@ struct X87FPU
     }
 
 };
+
+// --- x87 optimization ---
+//
+// Intrinsics related to the `optimize_x87` config flag.
+// See `x87.md`.
+
+// --- x87 optimization: Assumptions ---
+
+// X87_ASSUME(c): tells the compiler `c` holds.
+// Define X87_ASSUME_CHECK to check it at runtime instead.
+// Can be helpful for debugging.
+#ifdef X87_ASSUME_CHECK
+extern "C" [[noreturn]] void x87_assume_failed(const char* function, int line);
+
+// Hides the value from the compiler.
+// Prevent deletion of this check at runtime.
+// Because typical compiler wouldn't nuke out asm.
+//
+// This is kinda similar to `black_box` function in Criterion (Rust).
+template <typename T>
+X86_FORCEINLINE T x87_opaque(T value)
+{
+    asm volatile("" : "+r"(value));
+    return value;
+}
+#define X87_ASSUME(c) do { if (!x87_opaque(bool(c))) x87_assume_failed(__func__, __LINE__); } while (0)
+#elif defined(__clang__)
+#define X87_ASSUME(c) __builtin_assume(c)
+#elif defined(_MSC_VER)
+#define X87_ASSUME(c) __assume(c)
+#else
+#define X87_ASSUME(c) do { if (!(c)) X86_UNREACHABLE(); } while (0)
+#endif
+
+// Reads `sw` with a 16-bit load.
+//
+// Clang may otherwise use a 4-byte load, which hurts perf a bit due to read stalls.
+// It cost about 2 ns per call in `sub_30ECB0`.
+X86_FORCEINLINE uint16_t x87_load_u16(const uint16_t* field)
+{
+    uint16_t value;
+    memcpy(&value, field, sizeof(value));
+    asm("" : "+r"(value)); // <- keeps the load 16-bit
+    return value;
+}
+
+// Builds the 8 x87 tag bytes for a stack holding `Live` values.
+// Each byte is 0 if its slot holds a value, or 3 if the slot is empty.
+//
+// See X87FPU->tw.tag
+template <int Live>
+constexpr uint64_t x87_tags()
+{
+    constexpr int top = (8 - Live) & 7;
+    uint64_t tags = 0;
+    for (int k = 0; k < 8; ++k)
+        tags |= uint64_t(((k - top) & 7) < Live ? 0 : 3) << (8 * k);
+
+    return tags;
+}
+
+// Tells the compiler.
+//
+// Hey fella! We have `live` values on the stack right meow.
+#define X87_ASSUME_DEPTH(fpu, live) do { \
+    constexpr uint64_t x87_tags_ = x87_tags<live>(); \
+    X87_ASSUME((fpu).top == ((8 - (live)) & 7)); \
+    X87_ASSUME((fpu).tw.tag[0] == uint8_t(x87_tags_)); \
+    X87_ASSUME((fpu).tw.tag[1] == uint8_t(x87_tags_ >> 8)); \
+    X87_ASSUME((fpu).tw.tag[2] == uint8_t(x87_tags_ >> 16)); \
+    X87_ASSUME((fpu).tw.tag[3] == uint8_t(x87_tags_ >> 24)); \
+    X87_ASSUME((fpu).tw.tag[4] == uint8_t(x87_tags_ >> 32)); \
+    X87_ASSUME((fpu).tw.tag[5] == uint8_t(x87_tags_ >> 40)); \
+    X87_ASSUME((fpu).tw.tag[6] == uint8_t(x87_tags_ >> 48)); \
+    X87_ASSUME((fpu).tw.tag[7] == uint8_t(x87_tags_ >> 56)); \
+} while (0)
+
+// Copy local `fpu` -> `ctx.fpu`.
+// With `Live` values on the stack.
+//
+// This is used to 'sync' before a `call`, `return` or `hook`.
+// Also writes `sw` while at it, in case status bits are read.
+// `cw` is skipped, called function doesn't need it.
+template <int Live>
+X86_FORCEINLINE void x87_out(X87FPU& dst, const X87FPU& src)
+{
+    constexpr uint16_t top = (8 - Live) & 7;
+    constexpr uint64_t tags = x87_tags<Live>();
+    dst.top = top;
+    dst.sw = uint16_t((src.sw & ~0x3800) | (top << 11));
+    memcpy(dst.tw.tag, &tags, sizeof(tags));
+    for (int k = 0; k < Live; ++k)
+        dst.st[(top + k) & 7] = src.st[(top + k) & 7];
+}
+
+// Copy local `ctx.fpu` -> `fpu`.
+// With `Live` values on the stack.
+//
+// Inverse of `x87_out`.
+// Note: Compiler can (in theory) drop loads for `cw`, `sw` etc if they're
+//       never read. I've not validated if this happens, however.
+template <int Live>
+X86_FORCEINLINE void x87_in(X87FPU& dst, const X87FPU& src)
+{
+    constexpr uint16_t top = (8 - Live) & 7;
+    constexpr uint64_t tags = x87_tags<Live>();
+    dst.top = top;
+    memcpy(dst.tw.tag, &tags, sizeof(tags));
+    dst.cw = src.cw;
+    dst.sw = uint16_t((x87_load_u16(&src.sw) & ~0x3800) | (top << 11));
+    for (int k = 0; k < Live; ++k)
+        dst.st[(top + k) & 7] = src.st[(top + k) & 7];
+}
+
+// Copies `ctx.fpu` at function entry.
+// `sw` is read with `x87_load_u16`.
+X86_FORCEINLINE X87FPU x87_copy(const X87FPU& src)
+{
+    X87FPU dst = src;
+    dst.sw = x87_load_u16(&src.sw);
+    return dst;
+}
+
+// Variant of `x87_in` for `if (Hook(ctx, base))`; when you need to reload
+// between the hook and branch.
+template <int Live>
+X86_FORCEINLINE bool x87_after_hook(bool taken, X87FPU& dst, const X87FPU& src)
+{
+    x87_in<Live>(dst, src);
+    return taken;
+}
 
 
 union XmmRegister {
@@ -2270,7 +2401,7 @@ X86_FORCEINLINE int x87_exponent(x87_float value)
 }
 
 template<bool Ieee>
-inline void x87_fprem(X87FPU& fpu)
+X86_FORCEINLINE void x87_fprem(X87FPU& fpu)
 {
     const x87_float dividend = fpu.st0();
     const x87_float divisor = fpu.st1();
@@ -2308,12 +2439,12 @@ inline void x87_fprem(X87FPU& fpu)
              ((q & 4) ? X87FPU::C0 : 0) | ((q & 2) ? X87FPU::C3 : 0) | ((q & 1) ? X87FPU::C1 : 0);
 }
 
-inline void X87_FPREM(X87FPU& fpu)
+X86_FORCEINLINE void X87_FPREM(X87FPU& fpu)
 {
     x87_fprem<false>(fpu);
 }
 
-inline void X87_FPREM1(X87FPU& fpu)
+X86_FORCEINLINE void X87_FPREM1(X87FPU& fpu)
 {
     x87_fprem<true>(fpu);
 }
@@ -2614,8 +2745,9 @@ X86_FORCEINLINE void X87_FSINCOS(X87FPU& fpu, T value)
 #if defined(__GLIBC__)
     // glibc's sincos gives the same bits as sin and cos, in one call.
     if constexpr (sizeof(T) == sizeof(double) && sizeof(x87_float) == sizeof(double)) {
-        x87_float& cosine = fpu.st[(fpu.top - 1) & 7];
-        __builtin_sincos(value, &fpu.st0(), &cosine);
+        double sine, cosine;
+        __builtin_sincos(value, &sine, &cosine);
+        fpu.st0() = sine;
         fpu.push<Checked>(cosine);
         return;
     }
@@ -3783,7 +3915,7 @@ X86_FORCEINLINE void X86_BSF16(uint16_t& dst, uint16_t src, X86Context& ctx)
 // --- FPATAN helper ---
 
 template<bool Status = true, bool Checked = true>
-inline void X86_FPATAN(X87FPU& fpu)
+X86_FORCEINLINE void X86_FPATAN(X87FPU& fpu)
 {
     x87_float st1Temp = fpu.st1();
     x87_float st0Temp = fpu.st0();

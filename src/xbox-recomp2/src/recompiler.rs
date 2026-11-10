@@ -468,6 +468,8 @@ impl<'a> Recompiler<'a> {
         optimizations::run(
             &mut models,
             &self.function_graph,
+            &self.executable.imports,
+            &self.config.optimization_hints,
             &self.config.optimizations,
             &self.config.speed_hacks,
             diag,

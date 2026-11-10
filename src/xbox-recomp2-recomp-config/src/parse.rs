@@ -2,6 +2,7 @@
 
 use super::types::{
     FunctionAddress, FunctionSize, InvalidInstructionSize, Optimizations, SpeedHacks, SwitchTable,
+    X87StackEffect,
 };
 use super::{ConfigError, LoadedConfig, MidAsmHook, RecompilerConfig, directory_of};
 use core::str::from_utf8;
@@ -21,6 +22,9 @@ struct ConfigDocument {
 
     #[serde(default)]
     speed_hacks: SpeedHacksSection,
+
+    #[serde(default)]
+    optimization_hints: OptimizationHintsSection,
 
     #[serde(default)]
     fixes: FixesSection,
@@ -68,12 +72,21 @@ struct OptimizationsSection {
     eliminate_return_slot: bool,
     eliminate_stack_args: bool,
     trust_callee_returns: bool,
-    x87_lowering: bool,
+    optimize_x87: bool,
+    optimize_mmx: bool,
+    eliminate_dead_x87_status: bool,
     eliminate_dead_flags: bool,
     fuse_compare_branch: bool,
     find_ebp_frames: bool,
     idiv32_after_cdq: bool,
     find_string_direction: bool,
+}
+
+/// The `[optimization_hints]` section.
+#[derive(Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct OptimizationHintsSection {
+    x87_stack_effects: Vec<X87StackEffectEntry>,
 }
 
 /// The `[speed_hacks]` section.
@@ -84,6 +97,7 @@ struct SpeedHacksSection {
     fast_trig: bool,
     fast_x87_status: bool,
     fast_x87_stack: bool,
+    fast_x87_ffree: bool,
     fast_fscale: bool,
     fast_sse_status: bool,
     nonvolatile_stack: bool,
@@ -115,6 +129,15 @@ struct InvalidInstructionEntry {
     size: u32,
 }
 
+/// An `optimization_hints.x87_stack_effects` entry.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct X87StackEffectEntry {
+    address: u32,
+    stack_at_entry: u8,
+    stack_at_exit: u8,
+}
+
 impl Default for OptimizationsSection {
     fn default() -> Self {
         let passes = Optimizations::default();
@@ -123,7 +146,9 @@ impl Default for OptimizationsSection {
             eliminate_return_slot: passes.eliminate_return_slot,
             eliminate_stack_args: passes.eliminate_stack_args,
             trust_callee_returns: passes.trust_callee_returns,
-            x87_lowering: passes.x87_lowering,
+            optimize_x87: passes.optimize_x87,
+            optimize_mmx: passes.optimize_mmx,
+            eliminate_dead_x87_status: passes.eliminate_dead_x87_status,
             eliminate_dead_flags: passes.eliminate_dead_flags,
             fuse_compare_branch: passes.fuse_compare_branch,
             find_ebp_frames: passes.find_ebp_frames,
@@ -141,6 +166,7 @@ impl Default for SpeedHacksSection {
             fast_trig: hacks.fast_trig,
             fast_x87_status: hacks.fast_x87_status,
             fast_x87_stack: hacks.fast_x87_stack,
+            fast_x87_ffree: hacks.fast_x87_ffree,
             fast_fscale: hacks.fast_fscale,
             fast_sse_status: hacks.fast_sse_status,
             nonvolatile_stack: hacks.nonvolatile_stack,
@@ -193,7 +219,9 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             eliminate_return_slot: raw.optimizations.eliminate_return_slot,
             eliminate_stack_args: raw.optimizations.eliminate_stack_args,
             trust_callee_returns: raw.optimizations.trust_callee_returns,
-            x87_lowering: raw.optimizations.x87_lowering,
+            optimize_x87: raw.optimizations.optimize_x87,
+            optimize_mmx: raw.optimizations.optimize_mmx,
+            eliminate_dead_x87_status: raw.optimizations.eliminate_dead_x87_status,
             eliminate_dead_flags: raw.optimizations.eliminate_dead_flags,
             fuse_compare_branch: raw.optimizations.fuse_compare_branch,
             find_ebp_frames: raw.optimizations.find_ebp_frames,
@@ -205,6 +233,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             fast_trig: raw.speed_hacks.fast_trig,
             fast_x87_status: raw.speed_hacks.fast_x87_status,
             fast_x87_stack: raw.speed_hacks.fast_x87_stack,
+            fast_x87_ffree: raw.speed_hacks.fast_x87_ffree,
             fast_fscale: raw.speed_hacks.fast_fscale,
             fast_sse_status: raw.speed_hacks.fast_sse_status,
             nonvolatile_stack: raw.speed_hacks.nonvolatile_stack,
@@ -236,6 +265,19 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             FunctionAddress::from(entry.start),
             FunctionAddress::from(entry.end),
         );
+    }
+
+    for entry in raw.optimization_hints.x87_stack_effects {
+        config
+            .optimization_hints
+            .x87_stack_effects
+            .insert_or_overwrite(
+                FunctionAddress::from(entry.address),
+                X87StackEffect {
+                    stack_at_entry: entry.stack_at_entry,
+                    stack_at_exit: entry.stack_at_exit,
+                },
+            );
     }
 
     for (index, table) in raw.switch.into_iter().enumerate() {

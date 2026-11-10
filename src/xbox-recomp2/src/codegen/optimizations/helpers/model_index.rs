@@ -7,7 +7,7 @@ use core::ops::{Index, IndexMut};
 /// # Remarks
 ///
 /// Slices and [`Vec`]s take it as an index.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(in crate::codegen) struct ModelIndex(usize);
 
 impl From<usize> for ModelIndex {

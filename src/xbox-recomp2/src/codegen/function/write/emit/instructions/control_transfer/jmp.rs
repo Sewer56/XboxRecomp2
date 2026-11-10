@@ -24,7 +24,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
                 let label = GuestAddress32::from(label);
                 if ctx.is_local_target(label) {
                     cpp!(ctx.out, "goto loc_{label:X};");
-                } else if print_function_call_addr(ctx, label, false) {
+                    ctx.out.dedent();
+                    continue;
+                }
+
+                // A case that leaves the function: a tail call.
+                ctx.x87_local_to_ctx();
+                if print_function_call_addr(ctx, label, false) {
                     cpp!(ctx.out, "return;");
                 } else {
                     switch_case_outside(ctx, label);
@@ -53,6 +59,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
             // Handle regular indirect jump dynamically
             let target =
                 GuestAddress32::from(memory(&operands[0]).unwrap().disp.displacement as u32);
+            ctx.x87_local_to_ctx();
             if ctx.imports.resolve_thunk(target.get().into()).is_some() {
                 print_function_call_addr(ctx, target, false);
             } else {
@@ -74,6 +81,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
 
         if !ctx.is_local_target(target) {
             // Target is outside the current function: call the function
+            ctx.x87_local_to_ctx();
             print_function_call_addr(ctx, target, false);
             cpp!(ctx.out, "return;");
         } else {
@@ -82,6 +90,7 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         }
     } else if let Some(reg) = register(&operands[0]) {
         let reg = get_x86_reg(reg);
+        ctx.x87_local_to_ctx();
         cpp!(
             ctx.out,
             "

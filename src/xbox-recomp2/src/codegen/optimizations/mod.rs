@@ -2,11 +2,13 @@
 
 use crate::analysis::FunctionGraph;
 use crate::codegen::function::model::FunctionModel;
-use crate::config::{Optimizations, SpeedHacks};
+use crate::config::{OptimizationHints, Optimizations, SpeedHacks};
+use crate::executable::ImportMap;
 use helpers::flag_boundaries::FlagBoundaries;
 use std::io::Write;
 
 mod eliminate_dead_flags;
+mod eliminate_dead_x87_status;
 pub(in crate::codegen) mod eliminate_return_slot;
 pub(in crate::codegen) mod eliminate_stack_args;
 mod find_ebp_frames;
@@ -14,12 +16,15 @@ mod find_string_direction;
 pub(in crate::codegen) mod helpers;
 mod idiv32_after_cdq;
 mod merge_cmp_jmp;
-mod x87_lowering;
+mod mmx_locals;
+mod x87;
 
 /// Runs all optimisation passes.
 pub(crate) fn run(
     models: &mut [FunctionModel],
     graph: &FunctionGraph,
+    imports: &ImportMap,
+    hints: &OptimizationHints,
     switches: &Optimizations,
     hacks: &SpeedHacks,
     diag: &mut dyn Write,
@@ -60,10 +65,24 @@ pub(crate) fn run(
         }
     }
 
-    if switches.runs_x87_lowering() {
-        for model in models.iter_mut() {
-            x87_lowering::run(model);
-        }
+    if switches.runs_optimize_x87() {
+        x87::run(
+            models,
+            graph,
+            imports,
+            &hints.x87_stack_effects,
+            x87::Hacks {
+                fast_trig: hacks.runs_fast_trig(),
+                fast_ffree: hacks.runs_fast_x87_ffree(),
+            },
+            diag,
+        );
+    }
+    if switches.runs_optimize_mmx() {
+        mmx_locals::run(models, diag);
+    }
+    if switches.runs_eliminate_dead_x87_status() {
+        eliminate_dead_x87_status::run(models);
     }
 
     if switches.runs_find_ebp_frames() {

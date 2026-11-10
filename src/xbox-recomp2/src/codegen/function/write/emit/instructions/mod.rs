@@ -43,6 +43,13 @@ pub(in crate::codegen::function::write) fn lookup(
     })
 }
 
+/// Whether the writer has an emitter for `mnemonic`.
+///
+/// Instructions without one are written as a `MISSING` comment.
+pub(in crate::codegen) fn has_emitter(mnemonic: Mnemonic) -> bool {
+    emitter_for(mnemonic).is_some()
+}
+
 fn emitter_for(mnemonic: Mnemonic) -> Option<EmitterFn> {
     let emitter: EmitterFn = match mnemonic {
         Mnemonic::AAA => arithmetic::aaa::emit,
@@ -285,6 +292,7 @@ mod tests {
     use super::*;
     use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
     use crate::codegen::function::write::emit::{CodeWriter, FunctionState};
+    use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, instruction};
     use crate::config::RecompilerConfig;
     use crate::executable::{ImportMap, SymbolTable};
@@ -301,6 +309,7 @@ mod tests {
             insn: &insn,
             needed_eflags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
+            needed_status: ConditionCodes::all(),
             symbols: &SymbolTable::default(),
             imports: &ImportMap::default(),
             config: &config,

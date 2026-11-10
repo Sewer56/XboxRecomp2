@@ -9,7 +9,7 @@
 
     Under `codegen/`:
 
-    - `ControlFlow::new` in `function/model/control_flow/mod.rs` maps every path.
+    - `OpGraph::new` in `optimizations/helpers/op_graph/mod.rs` maps every path.
     - `FunctionStack::new` in `optimizations/helpers/function_stack.rs` follows every path (steps 1 and 2).
     - `StackFrame::step` in `optimizations/helpers/stack_frame.rs` handles one instruction (step 2).
     - `StackFrame::address` in `optimizations/helpers/stack_frame.rs` turns addresses into positions (step 3).

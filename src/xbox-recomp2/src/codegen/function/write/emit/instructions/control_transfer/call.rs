@@ -30,7 +30,10 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, call: &Ca
             .wrapping_add(ctx.insn.length() as u32)
             .wrapping_add(immediate(&operands[0]).unwrap().value as i64 as u32);
 
-        if !print_function_call_addr(ctx, target, call.calls_fastcall) {
+        ctx.x87_local_to_ctx();
+        if print_function_call_addr(ctx, target, call.calls_fastcall) {
+            ctx.x87_ctx_to_local();
+        } else {
             if words != 0 {
                 cpp!(
                     ctx.out,
@@ -52,7 +55,10 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, call: &Ca
                 ctx.out,
                 "ctx.SubEsp(1); //Adjust stack pointer for call instruction"
             );
-            if !print_function_call_addr(ctx, target, false) {
+            ctx.x87_local_to_ctx();
+            if print_function_call_addr(ctx, target, false) {
+                ctx.x87_ctx_to_local();
+            } else {
                 cpp!(
                     ctx.out,
                     "ctx.AddEsp(1); //function wasn't found, reAdjust stack pointer TODO FIX!!!!!"
@@ -66,9 +72,11 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, call: &Ca
                 "
                 val_uint32_0 = X86_LOAD_U32({target_ea});
                 ctx.SubEsp(1); //Adjust stack pointer for call instruction
-                X86_CALL_INDIRECT_FUNC(val_uint32_0);
             "
             );
+            ctx.x87_local_to_ctx();
+            cpp!(ctx.out, "X86_CALL_INDIRECT_FUNC(val_uint32_0);");
+            ctx.x87_ctx_to_local();
         }
     } else if register(&operands[0]).is_some() {
         let reg = get_x86_reg(register(&operands[0]).unwrap());
@@ -91,11 +99,11 @@ pub(in crate::codegen::function::write) fn emit(ctx: &mut Emitter<'_>, call: &Ca
 
         cpp!(
             ctx.out,
-            "
-            ctx.SubEsp(1); //Adjust stack pointer for call instruction
-            X86_CALL_INDIRECT_FUNC(val_uint32_0);
-        "
+            "ctx.SubEsp(1); //Adjust stack pointer for call instruction"
         );
+        ctx.x87_local_to_ctx();
+        cpp!(ctx.out, "X86_CALL_INDIRECT_FUNC(val_uint32_0);");
+        ctx.x87_ctx_to_local();
     } else {
         ctx.missing_form();
     }

@@ -7,16 +7,18 @@ and before being written out as C++.
 
 ## The optimizations
 
-| Optimization              | What it does                                        | Status        |
-| ------------------------- | --------------------------------------------------- | ------------- |
-| [`eliminate_return_slot`] | Doesn't put return addresses on the stack.          | Working       |
-| [`eliminate_stack_args`]  | Optimizes away push+pop across function calls.      | Working       |
-| [`x87_lowering`]          | Keeps x87 values in local variables.                | Not built yet |
-| [`fuse_compare_branch`]   | Turns cmp + jump into a plain `if (a < b)`.         | Working       |
-| [`eliminate_dead_flags`]  | Only computes arithmetic flags that are read later. | Working       |
-| [`find_ebp_frames`]       | Finds functions that use EBP as the frame pointer.  | Working       |
-| [`idiv32_after_cdq`]      | Uses a 32-bit `idiv` after `cdq`.                   | Working       |
-| [`find_string_direction`] | Skips the direction check in `rep movs` and co.     | Working       |
+| Optimization                  | What it does                                                     | Status  |
+| ----------------------------- | ---------------------------------------------------------------- | ------- |
+| [`eliminate_return_slot`]     | Doesn't put return addresses on the stack.                       | Working |
+| [`eliminate_stack_args`]      | Optimizes away push+pop across function calls.                   | Working |
+| [`optimize_x87`]              | Works out the x87 stack depth, so x87 code can use a local copy. | Working |
+| [`optimize_mmx`]              | Keeps MMX registers in a local array.                            | Working |
+| [`eliminate_dead_x87_status`] | Skips x87 C0-C3 status-bit writes nothing reads.                 | Working |
+| [`fuse_compare_branch`]       | Turns cmp + jump into a plain `if (a < b)`.                      | Working |
+| [`eliminate_dead_flags`]      | Only computes arithmetic flags that are read later.              | Working |
+| [`find_ebp_frames`]           | Finds functions that use EBP as the frame pointer.               | Working |
+| [`idiv32_after_cdq`]          | Uses a 32-bit `idiv` after `cdq`.                                | Working |
+| [`find_string_direction`]     | Skips the direction check in `rep movs` and co.                  | Working |
 
 ## Helpers
 
@@ -26,7 +28,9 @@ e.g. to track the stack, or find every caller of a function.
 [function model]: ../recompiling-functions.md
 [`eliminate_return_slot`]: return-slot-elimination.md
 [`eliminate_stack_args`]: stack-argument-elimination.md
-[`x87_lowering`]: x87-lowering.md
+[`optimize_x87`]: x87.md
+[`optimize_mmx`]: mmx-locals.md
+[`eliminate_dead_x87_status`]: skip-unused-x87-status.md
 [`eliminate_dead_flags`]: skip-unused-flags.md
 [`fuse_compare_branch`]: merge-compare-and-jump.md
 [`find_ebp_frames`]: find-ebp-frames.md

@@ -32,19 +32,20 @@
 
 pub(in crate::codegen) use super::build::StepFailure;
 use crate::analysis::LocalTargets;
+use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
 use crate::config::FunctionAddress;
 use crate::decode::{CpuFlag, Insn, Register};
 use crate::executable::SwitchTable;
-pub(in crate::codegen) use control_flow::{ControlFlow, Edge};
 pub(crate) use hook::Hook;
 pub(crate) use intrinsics::{
     Call, CdqIdiv, Condition, MergedCmpJmp, MergedInstruction, MergedInstructionKind, Return,
 };
+pub(crate) use x87::{HookSync, X87Level, X87Plan, X87Sync};
 use xbox_recomp2_executable::GuestAddress32;
 
-mod control_flow;
 mod hook;
 mod intrinsics;
+mod x87;
 
 /// Flags stored in `X86EFlags::common`.
 ///
@@ -93,6 +94,14 @@ pub(crate) struct FunctionModel {
 
     /// Whether `[ebp+N]` always points into this function's stack frame.
     pub ebp_frame: bool,
+
+    /// How to write the x87 code, set by the `optimize_x87` pass.
+    pub x87: X87Plan,
+
+    /// Whether MMX registers live in a local `uint64_t mmx[8]`.
+    ///
+    /// Set by the `optimize_mmx` pass.
+    pub local_mmx: bool,
 }
 
 /// A scratch variable declared at the top of the function.
@@ -256,6 +265,10 @@ pub(crate) struct GuestOp {
 
     /// Value of DF at this instruction, if known.
     pub direction: DirectionFlag,
+
+    /// x87 condition codes observable after this instruction.
+    /// (Same like needed_flags, but for x87 condition codes.)
+    pub needed_status: ConditionCodes,
 }
 
 /// Which way string instructions like `rep movsd` walk memory.
@@ -309,6 +322,59 @@ impl FunctionModel {
 }
 
 impl Op {
+    /// The guest instructions in this operation, in guest (address) order.
+    pub(in crate::codegen) fn guests(&self) -> impl Iterator<Item = &GuestOp> {
+        let (first, pop, rest): (_, _, &[MergedInstruction]) = match self {
+            Op::Guest(guest) => (Some(guest), None, &[]),
+            Op::Call(call) => (Some(&call.guest), None, &[]),
+            Op::Return(ret) => (Some(&ret.guest), None, &[]),
+            Op::CdqIdiv(idiv) => (Some(&idiv.guest), None, &[]),
+            Op::MergedCmpJmp(merged) => (
+                Some(&merged.compare),
+                merged.x87_pop.as_ref(),
+                &merged.instructions,
+            ),
+            Op::Failed { .. } => (None, None, &[]),
+        };
+
+        let rest = rest.iter().map(|instruction| &instruction.guest);
+        first.into_iter().chain(pop).chain(rest)
+    }
+
+    /// Like [`Self::guests`], but each can be changed.
+    pub(in crate::codegen) fn guests_mut(&mut self) -> impl Iterator<Item = &mut GuestOp> {
+        let (first, pop, rest): (_, _, &mut [MergedInstruction]) = match self {
+            Op::Guest(guest) => (Some(guest), None, &mut []),
+            Op::Call(call) => (Some(&mut call.guest), None, &mut []),
+            Op::Return(ret) => (Some(&mut ret.guest), None, &mut []),
+            Op::CdqIdiv(idiv) => (Some(&mut idiv.guest), None, &mut []),
+            Op::MergedCmpJmp(merged) => {
+                let merged = &mut **merged;
+                (
+                    Some(&mut merged.compare),
+                    merged.x87_pop.as_mut(),
+                    &mut merged.instructions,
+                )
+            }
+            Op::Failed { .. } => (None, None, &mut []),
+        };
+
+        let rest = rest.iter_mut().map(|instruction| &mut instruction.guest);
+        first.into_iter().chain(pop).chain(rest)
+    }
+
+    /// Where this operation starts in guest memory.
+    pub(in crate::codegen) fn address(&self) -> GuestAddress32 {
+        match self {
+            Op::Guest(guest) => guest.address,
+            Op::Call(call) => call.guest.address,
+            Op::Return(ret) => ret.guest.address,
+            Op::CdqIdiv(idiv) => idiv.guest.address,
+            Op::MergedCmpJmp(merged) => merged.compare.address,
+            Op::Failed { address, .. } => *address,
+        }
+    }
+
     /// Whether this operation holds the guest instruction at `address`.
     pub(in crate::codegen) fn has_address(&self, address: GuestAddress32) -> bool {
         match self {

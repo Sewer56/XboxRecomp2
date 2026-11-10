@@ -15,7 +15,7 @@
 //!
 //! Comments for added or changed instructions start with `(rewritten)`.
 
-use super::model::{Block, Entry, Exit, FunctionAbi, FunctionModel, GuestOp, Local, Op};
+use super::model::{Block, Entry, Exit, FunctionAbi, FunctionModel, GuestOp, Local, Op, X87Level};
 use super::{FunctionScratch, GenerationContext};
 use crate::WrongAnalyse;
 use crate::codegen::run_state::RunState;
@@ -27,8 +27,8 @@ use crate::templates::{
 };
 use core::fmt::Write as _;
 use core::str::from_utf8;
-pub(in crate::codegen) use emit::supports_addressing;
 use emit::{CodeWriter, Emitter, FunctionState, emit_call, emit_cdq_idiv, emit_return, lookup};
+pub(in crate::codegen) use emit::{has_emitter, supports_addressing};
 use xbox_recomp2_executable::GuestAddress32;
 
 pub(super) mod emit;
@@ -37,6 +37,7 @@ mod locals;
 mod merged_cmp_jmp;
 mod midasm_hook;
 mod nonvolatile_stack;
+mod x87;
 
 /// Writes `model` as the C++ function `name`, appending to `out`.
 ///
@@ -110,6 +111,10 @@ fn write_body(
     for local in locals::get_variable_declarations(&model.blocks) {
         write_local(local, &mut scratch.text);
     }
+    x87::write_prologue(&model.x87, &mut scratch.text);
+    if model.local_mmx {
+        scratch.text.push_str("\tuint64_t mmx[8];\n");
+    }
     write_entry(
         model.entry,
         context.base,
@@ -122,6 +127,8 @@ fn write_body(
         local_targets: model.local_targets(),
         mask_branch_targets: model.mask_branch_targets,
         ebp_frame: model.ebp_frame,
+        local_fpu: model.x87.level == X87Level::LocalCopy,
+        local_mmx: model.local_mmx,
         ..FunctionState::default()
     };
     for block in &model.blocks {
@@ -441,6 +448,7 @@ fn guest_emitter<'a>(
         insn: &guest.insn,
         needed_eflags: guest.needed_flags,
         direction: guest.direction,
+        needed_status: guest.needed_status,
         symbols: &context.executable.symbols,
         imports: &context.executable.imports,
         config: context.config,
@@ -529,11 +537,21 @@ fn write_instruction_prefix(
     scratch.text.push('\n');
     out.extend_from_slice(scratch.text.as_bytes());
 
+    // Assume the x87 depth, and pick up this instruction's syncs.
+    x87::start_instruction(
+        context.x87,
+        guest.address,
+        function_state,
+        &mut scratch.text,
+    );
+    out.extend_from_slice(scratch.text.as_bytes());
+
     // Call this address's hook, if it has one.
     midasm_hook::write_hook_call(
         context.config,
         guest.address,
         &function_state.local_targets,
+        function_state.x87_sync.hook,
         &mut scratch.text,
     );
     out.extend_from_slice(scratch.text.as_bytes());
@@ -605,7 +623,8 @@ fn report_failure(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag};
+    use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, DirectionFlag, X87Plan};
+    use crate::codegen::optimizations::helpers::instruction::effects::x87_status::ConditionCodes;
     use crate::codegen::optimizations::helpers::tests::{PlainPlatform, executable, instruction};
     use crate::config::RecompilerConfig;
     use ahash::HashSet;
@@ -635,6 +654,7 @@ mod tests {
             rewritten: false,
             needed_flags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
+            needed_status: ConditionCodes::all(),
         };
         let executable = executable(&code);
         let config = RecompilerConfig {
@@ -646,6 +666,7 @@ mod tests {
             config: &config,
             platform: &PlainPlatform,
             base: 0x1000.into(),
+            x87: &X87Plan::default(),
         };
         let (mut missing, mut missing_index) = (Vec::new(), HashSet::default());
         let (mut wrong, mut wrong_index) = (Vec::new(), HashSet::default());

@@ -11,6 +11,7 @@
 //!   - `test_hook(ctx, base);`
 
 use crate::analysis::LocalTargets;
+use crate::codegen::function::model::HookSync;
 use crate::config::{FunctionAddress, MidAsmHook, RecompilerConfig};
 use crate::templates::{MIDASM_HOOK_DECL, render_into};
 use core::fmt::Write as _;
@@ -22,10 +23,20 @@ use xbox_recomp2_executable::GuestAddress32;
 ///     test_hook(ctx, base);
 ///     goto loc_1000;
 /// ```
+///
+/// When `x87` is `Some`, the function's local `fpu` copy is synced around the hook:
+///
+/// ```cpp
+///     x87_out<1>(ctx.fpu, fpu);
+///     test_hook(ctx, base);
+///     x87_in<1>(fpu, ctx.fpu);
+///     goto loc_1000;
+/// ```
 pub(super) fn write_hook_call(
     config: &RecompilerConfig,
     address: GuestAddress32,
     local_targets: &LocalTargets,
+    x87: Option<HookSync>,
     text: &mut String,
 ) {
     text.clear();
@@ -37,10 +48,26 @@ pub(super) fn write_hook_call(
 
     let is_local = &|target: GuestAddress32| local_targets.contains(target);
 
+    // Hand the local copy to the hook.
+    if let Some(sync) = x87
+        && sync.local_to_ctx
+    {
+        let _ = writeln!(text, "\tx87_out<{}>(ctx.fpu, fpu);", sync.depth);
+    }
+
     if hook_returns_bool(hook) {
         // if (hook(ctx, base)) {
+        // or
+        // if (x87_after_hook<1>(hook(ctx, base), fpu, ctx.fpu)) {
         text.push_str("\tif (");
-        push_call(text, hook);
+        match x87 {
+            Some(sync) => {
+                let _ = write!(text, "x87_after_hook<{}>(", sync.depth);
+                push_call(text, hook);
+                text.push_str(", fpu, ctx.fpu)");
+            }
+            None => push_call(text, hook),
+        }
         text.push_str(") {\n");
 
         // 'return'
@@ -75,6 +102,11 @@ pub(super) fn write_hook_call(
         text.push('\t');
         push_call(text, hook);
         text.push_str(";\n");
+
+        // Take back what the hook changed.
+        if let Some(sync) = x87 {
+            let _ = writeln!(text, "\tx87_in<{}>(fpu, ctx.fpu);", sync.depth);
+        }
 
         // 'return'
         // or
@@ -219,6 +251,7 @@ mod tests {
             &config,
             0x1000.into(),
             &LocalTargets::new([0x1000.into()]),
+            None,
             &mut text,
         );
 
@@ -267,6 +300,7 @@ mod tests {
             &config,
             0x1000.into(),
             &LocalTargets::default(),
+            None,
             &mut call_text,
         );
 

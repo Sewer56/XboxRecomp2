@@ -1,5 +1,6 @@
 //! Lists the operations that can run right before each operation.
 
+use crate::codegen::optimizations::helpers::op_graph::OpIndex;
 use crate::utils::flat_lists::{FlatLists, FlatListsBuilder};
 
 /// Operations that can run right before each operation.
@@ -40,9 +41,9 @@ impl Predecessors {
     }
 
     /// Operations that can run right before the one at `index`.
-    pub(super) fn of(&self, index: usize) -> impl Iterator<Item = usize> + '_ {
+    pub(super) fn of(&self, index: OpIndex) -> impl Iterator<Item = OpIndex> + '_ {
         let previous = self.lists.get(index);
-        previous.iter().map(|&operation| operation as usize)
+        previous.iter().map(|&operation| operation as OpIndex)
     }
 }
 

@@ -3,8 +3,9 @@
 //! stack-tracking.md in docs may be useful. my amigo
 
 use super::known_callers::direct_call_target;
+use super::op_graph::{OpGraph, OpIndex};
 use super::stack_frame::StackFrame;
-use crate::codegen::function::model::{ControlFlow, FunctionModel, GuestOp, Op, Return};
+use crate::codegen::function::model::{FunctionModel, GuestOp, Op, Return};
 use crate::config::FunctionAddress;
 use crate::decode::{BranchType, InstructionCategory, Mnemonic};
 use optional::Optioned;
@@ -38,7 +39,7 @@ pub(in crate::codegen) struct FunctionStack<'a> {
     /// 4 if callers push a return address, otherwise 0.
     pub return_slot_bytes: u32,
 
-    flow: ControlFlow,
+    graph: OpGraph<'a>,
 }
 
 /// One instruction, and where ESP and EBP point before it runs.
@@ -141,13 +142,13 @@ impl<'a> FunctionStack<'a> {
             .is_some_and(|ret| ret.omit_return_slot);
 
         // Work out the paths from the current blocks.
-        let flow = ControlFlow::new(model)?;
-        let entry_ins_idx = flow.entry as usize;
+        let graph = OpGraph::new(model)?;
+        let entry_ins_idx = graph.entry as usize;
         let mut result = Self {
             instructions,
             entry: entry_ins_idx,
             return_slot_bytes: if omit_return_slot { 0 } else { 4 },
-            flow,
+            graph,
         };
 
         // Walk every path, stopping at instructions we've already seen.
@@ -173,7 +174,7 @@ impl<'a> FunctionStack<'a> {
 
             // Note: We bail out here with ? in case flow successors are not available.
             //       That's for out-of-function jumps or cases we can't analyze.
-            let returns = result.flow.successors(index)?.is_empty();
+            let returns = result.graph.successors(index)?.is_empty();
             if insn.instruction().address_width != 32 {
                 return None; // skip 16-bit insns
             }
@@ -229,9 +230,12 @@ impl<'a> FunctionStack<'a> {
     }
 
     /// Returns the indices of the instructions that can run after `index`.
-    pub(in crate::codegen) fn successors(&self, index: usize) -> impl Iterator<Item = usize> + '_ {
-        let targets = self.flow.successors(index).unwrap_or_default();
-        targets.iter().map(|&target| target as usize)
+    pub(in crate::codegen) fn successors(
+        &self,
+        index: OpIndex,
+    ) -> impl Iterator<Item = OpIndex> + '_ {
+        let targets = self.graph.successors(index).unwrap_or_default();
+        targets.iter().map(|&target| target as OpIndex)
     }
 
     /// Returns the instructions that some path from the entry reaches.

@@ -1,5 +1,5 @@
 use super::super::prelude::*;
-use super::helpers::stack_template_argument;
+use super::helpers::{emit_status_clear, stack_template_argument};
 
 pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let fpu = ctx.fpu();
@@ -17,11 +17,9 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let addr = ctx.ea(&operands[0]);
     let checked = stack_template_argument(ctx);
     // Intel's manual leaves C0, C2 and C3 undefined after FILD, so we keep them.
+    emit_status_clear(ctx, ConditionCodes::C1);
     cpp!(
         ctx.out,
-        "
-        {fpu}.sw &= ~X87FPU::C1;
-        {fpu}.push{checked}(static_cast<x87_float>(static_cast<{int_type}>({load}({addr}))));
-    "
+        "{fpu}.push{checked}(static_cast<x87_float>(static_cast<{int_type}>({load}({addr}))));"
     );
 }

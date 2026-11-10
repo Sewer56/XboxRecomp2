@@ -3,7 +3,7 @@
 //! See `skip-unused-flags.md` for more info.
 
 use super::helpers::flag_boundaries::FlagBoundaries;
-use super::helpers::instruction::flag_effects::EFlagEffects;
+use super::helpers::instruction::effects::eflags::EFlagEffects;
 use super::helpers::needed_flags::NeededFlags;
 use crate::codegen::function::model::{FunctionModel, Op};
 
@@ -240,6 +240,7 @@ mod tests {
             Setup::Merge => merge_cmp_jmp::run(slice::from_mut(&mut model), &boundaries),
             Setup::Hook(address) => model.hooks.push(Hook {
                 address: address.into(),
+                ..Hook::default()
             }),
         }
 
