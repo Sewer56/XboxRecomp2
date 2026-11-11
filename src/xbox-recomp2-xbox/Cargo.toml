@@ -1,7 +1,6 @@
 [package]
 name = "xbox-recomp2-xbox"
-# Not yet released, don't bump this.
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Xbox (XBE) executable loading for the XboxRecomp2 recompiler"
 repository = "https://github.com/Sewer56/XboxRecomp2"
@@ -12,8 +11,8 @@ keywords = ["xbox", "xbe", "parser", "emulation", "recompiler"]
 categories = ["emulators", "parser-implementations", "development-tools"]
 
 [dependencies]
-xbox-recomp2 = { path = "../xbox-recomp2", version = "0.1.0" }
-xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.1.0" }
+xbox-recomp2 = { path = "../xbox-recomp2", version = "0.2.0" }
+xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.2.0" }
 bitflags = "2"
 endian-writer = "2.3.0"
 endian-writer-derive = "0.2.0"
