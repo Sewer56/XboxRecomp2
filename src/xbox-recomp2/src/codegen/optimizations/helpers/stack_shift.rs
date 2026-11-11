@@ -172,7 +172,7 @@ fn check_pointer_uses(
     delta: i32,
 ) -> Option<()> {
     // The pointer must be in a general 32-bit register:
-    // - `StackFrame::step` already rejects `lea esp, ...` and `lea ebp, [esp+4]`.
+    // - ESP and EBP are tracked separately, not as movable argument pointers.
     // - `lea ax, [esp+4]` cuts off the address.
     let pointer = register(&stack.instructions[lea].instruction.insn.operands()[0])?;
     if !matches!(
@@ -259,6 +259,8 @@ fn implicit_access_is_safe(
     let word = STACK_WORD_BYTES as i32;
     let mut next = frame;
     match next.step(insn) {
+        // These forms need their own checks before shifting arguments.
+        Some(FrameStep::PushOther(_) | FrameStep::PopOther(_)) => false,
         // `push` writes the slot just below ESP.
         Some(FrameStep::Push(reg)) => !points_into_stack(reg, frame) && frame.esp <= fixed_end,
         Some(FrameStep::Adjust) if insn.mnemonic() == Mnemonic::PUSH => frame.esp <= fixed_end,

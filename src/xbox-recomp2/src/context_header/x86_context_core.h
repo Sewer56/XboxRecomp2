@@ -245,7 +245,7 @@ typedef float x86_guest_m128 __attribute__((vector_size(16), aligned(16), may_al
 template<typename T, bool Volatile>
 struct x86_slot { typedef volatile T type; };
 template<typename T>
-struct x86_slot<T, false> { typedef T __attribute__((may_alias)) type; };
+struct x86_slot<T, false> { typedef T __attribute__((may_alias, aligned(1))) type; };
 
 #define X86_LOAD_AS(T, Volatile, addr) (*reinterpret_cast<typename x86_slot<T, Volatile>::type*>(base + (addr)))
 #define X86_STORE_AS(T, Volatile, addr, value) (X86_LOAD_AS(T, Volatile, addr) = (value))
@@ -2101,6 +2101,31 @@ X86_FORCEINLINE void X86_FRAME_ENTER(uint8_t* frame, uint32_t address, uint8_t* 
 #define X86_FRAME_LOAD(T, offset) x86_frame_load<T>(frame + (offset))
 #define X86_FRAME_STORE(T, offset, value) x86_frame_store<T>(frame + (offset), static_cast<T>(value))
 
+X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot)
+{
+#if defined(X86_HOST_X86)
+    // Guest m80 is ten bytes, even when sizeof(long double) is sixteen.
+    long double value = 0;
+    memcpy(&value, slot, 10);
+    return static_cast<x87_float>(value);
+#else
+    return x86_load_f80(slot);
+#endif
+}
+
+X86_FORCEINLINE void x86_frame_store_f80(uint8_t* slot, x87_float value)
+{
+#if defined(X86_HOST_X86)
+    const long double extended = static_cast<long double>(value);
+    memcpy(slot, &extended, 10);
+#else
+    x86_store_f80(slot, value);
+#endif
+}
+
+#define X86_FRAME_LOAD_F80(offset) x86_frame_load_f80(frame + (offset))
+#define X86_FRAME_STORE_F80(offset, value) x86_frame_store_f80(frame + (offset), (value))
+
 X86_FORCEINLINE void X86_FRAME_PUSH(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset, uint32_t value)
 {
     x86_frame_store<uint32_t>(frame + offset, value);
@@ -2111,6 +2136,18 @@ X86_FORCEINLINE uint32_t X86_FRAME_POP(X86Context& __restrict ctx, uint8_t* fram
 {
     ctx.esp.u32 += 4;
     return x86_frame_load<uint32_t>(frame + offset);
+}
+
+X86_FORCEINLINE void X86_FRAME_PUSH16(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset, uint16_t value)
+{
+    x86_frame_store<uint16_t>(frame + offset, value);
+    ctx.esp.u32 -= 2;
+}
+
+X86_FORCEINLINE uint16_t X86_FRAME_POP16(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset)
+{
+    ctx.esp.u32 += 2;
+    return x86_frame_load<uint16_t>(frame + offset);
 }
 
 // CONDITION CODE HELPER

@@ -165,6 +165,7 @@ fn is_safe(item: &StackInstruction<'_>, mut frame: StackFrame, caller_cleanup: b
 
         // `push esp` hands out a stack address.
         Some(FrameStep::Push(Register::ESP)) => false,
+        Some(FrameStep::PushOther(_) | FrameStep::PopOther(_)) => false,
 
         // `push [mem]`
         Some(FrameStep::Adjust) => {

@@ -13,7 +13,9 @@ mod slots;
 
 use super::helpers::function_stack::{FunctionStack, StackInstruction, no_calls};
 use super::helpers::instruction::register_access::RegisterAccess;
-use super::helpers::stack_frame::{FrameStep, STACK_WORD_BYTES, StackFrame};
+use super::helpers::stack_frame::{
+    FrameStep, STACK_WORD_BYTES, StackFrame, ignores_memory_operand,
+};
 use crate::codegen::function::model::{FunctionModel, Op, StackLocals};
 use crate::decode::{
     DecodedOperand, Insn, InstructionAttributes, MemoryInfo, Mnemonic, OperandAction,
@@ -95,6 +97,10 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
     let frame = item.frame?;
     let insn = &item.instruction.insn;
 
+    if ignores_memory_operand(insn.mnemonic()) {
+        return Some(Slots::default());
+    }
+
     // If stack leaks elsewhere we can't track, bail out.
     if leaks_stack_address(insn, frame) {
         return None;
@@ -110,6 +116,12 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
         }
     }
 
+    // `pop [esp+N]`
+    let mut operand_frame = frame;
+    if insn.mnemonic() == Mnemonic::POP {
+        operand_frame.step(insn)?;
+    }
+
     let count = usize::from(insn.instruction().operand_count);
     for (index, operand) in insn.operands()[..count].iter().enumerate() {
         // Hidden operands are the push/pop slot.
@@ -117,7 +129,7 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
             continue;
         }
 
-        match operand_slot(insn, operand, frame) {
+        match operand_slot(insn, operand, operand_frame) {
             SlotUse::Outside => {}
             SlotUse::Local(offset) => slots.operands.push((index as OperandIndex, offset)),
             SlotUse::Unsupported => return None,
@@ -131,16 +143,26 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
 fn leaks_stack_address(insn: &Insn, frame: StackFrame) -> bool {
     let operands = insn.operands();
     // Moving ESP itself is fine, like `lea esp, [esp+8]`.
-    if StackFrame::adjustment(insn).is_some() || copies_esp_or_ebp(insn) {
+    let mut after = frame;
+    let step = after.step(insn);
+    if matches!(step, Some(FrameStep::SetBase | FrameStep::Adjust)) || copies_esp_or_ebp(insn) {
         return false;
     }
 
     match insn.mnemonic() {
         Mnemonic::LEA => memory(&operands[1]).is_some_and(|mem| uses_stack_register(mem, frame)),
 
-        Mnemonic::PUSH => register(&operands[0]).is_some_and(|reg| points_into_stack(reg, frame)),
+        Mnemonic::PUSH => register(&operands[0]).is_some_and(|reg| {
+            matches!(reg, Register::ESP | Register::SP)
+                || (matches!(reg, Register::EBP | Register::BP) && frame.ebp.is_some())
+        }),
 
-        Mnemonic::POP | Mnemonic::RET | Mnemonic::LEAVE => false,
+        Mnemonic::POP
+        | Mnemonic::RET
+        | Mnemonic::LEAVE
+        | Mnemonic::PUSHFD
+        | Mnemonic::CMP
+        | Mnemonic::TEST => false,
 
         _ => {
             let access = RegisterAccess::of(insn);
@@ -152,32 +174,35 @@ fn leaks_stack_address(insn: &Insn, frame: StackFrame) -> bool {
 
 /// Slot of a `push`, `pop` or `leave`.
 fn push_pop_slot(insn: &Insn, frame: StackFrame) -> SlotUse {
+    if matches!(insn.mnemonic(), Mnemonic::PUSH | Mnemonic::POP)
+        && memory(&insn.operands()[0]).is_some_and(|mem| mem.segment == Register::FS)
+    {
+        return SlotUse::Unsupported;
+    }
+
     let word = STACK_WORD_BYTES as i32;
     let mut after = frame;
     let offset = match after.step(insn) {
         Some(FrameStep::Push(_)) => after.esp,
+        Some(FrameStep::PushOther(_)) => after.esp,
         Some(FrameStep::Adjust) if insn.mnemonic() == Mnemonic::PUSH => after.esp,
 
         // `leave` pops EBP.
         Some(FrameStep::Pop(_)) => after.esp - word,
+        Some(FrameStep::PopOther(bytes)) => after.esp - bytes as i32,
         Some(FrameStep::Restore) if insn.mnemonic() == Mnemonic::LEAVE => after.esp - word,
 
         Some(_) => return SlotUse::Outside,
         None => return SlotUse::Unsupported,
     };
 
-    // `X86_FRAME_PUSH`/`POP` are 32-bit only.
-    if insn.instruction().operand_width != 32 {
-        return SlotUse::Unsupported;
-    }
-
-    // `pop [mem]`: rare, not worth handling.
-    if insn.mnemonic() == Mnemonic::POP && register(&insn.operands()[0]).is_none() {
-        return SlotUse::Unsupported;
-    }
-
     if offset >= 0 {
         return SlotUse::Outside;
+    }
+
+    let bytes = i32::from(insn.instruction().operand_width / 8);
+    if offset + bytes > 0 {
+        return SlotUse::Unsupported;
     }
 
     SlotUse::Local(offset)
@@ -246,13 +271,24 @@ fn copies_esp_or_ebp(insn: &Insn) -> bool {
     insn.mnemonic() == Mnemonic::MOV
         && matches!(
             (register(&operands[0]), register(&operands[1])),
-            (Some(Register::EBP), Some(Register::ESP)) | (Some(Register::ESP), Some(Register::EBP))
+            (
+                Some(Register::EBP | Register::ESP),
+                Some(Register::ESP | Register::EBP)
+            )
         )
 }
 
 /// Whether the operand is emitted as `X86_LOAD_*`, `X86_STORE_*` or a `_MEM` helper.
 /// i.e. Code we can rewrite.
 fn can_rewrite_operand(insn: &Insn, bits: u16, action: OperandAction) -> bool {
+    if insn.mnemonic() == Mnemonic::SGDT && bits == 48 {
+        return true;
+    }
+
+    if matches!(insn.mnemonic(), Mnemonic::FLD | Mnemonic::FSTP) && bits == 80 {
+        return true;
+    }
+
     if !matches!(bits, 8 | 16 | 32 | 64 | 128) {
         return false;
     }
@@ -311,6 +347,10 @@ fn stores_with_macro(mnemonic: Mnemonic) -> bool {
     matches!(
         mnemonic,
         Mnemonic::MOV
+            | Mnemonic::POP
+            | Mnemonic::SLDT
+            | Mnemonic::MOVNTPS
+            | Mnemonic::MOVNTQ
             | Mnemonic::MOVSS
             | Mnemonic::MOVAPS
             | Mnemonic::MOVUPS

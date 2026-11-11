@@ -4,7 +4,7 @@
 
 use super::known_callers::direct_call_target;
 use super::op_graph::{Edge, OpGraph, OpIndex};
-use super::stack_frame::StackFrame;
+use super::stack_frame::{StackFrame, ignores_memory_operand};
 use crate::codegen::function::model::{FunctionModel, GuestOp, Op, Return};
 use crate::config::FunctionAddress;
 use crate::decode::{BranchType, Insn, InstructionCategory, Mnemonic};
@@ -82,7 +82,7 @@ impl<'a> FunctionStack<'a> {
     /// - A path leaves the function without a `ret`, like a tail-call `jmp`.
     ///   With `allow_tail_calls`, jumps out are fine if ESP is back where it
     ///   started.
-    /// - It uses 16-bit addressing.
+    /// - It uses 16-bit addressing, except ignored no-ops and prefetch hints.
     /// - Two paths meet with different ESP or EBP.
     /// - A `ret` runs with ESP not back where it started.
     /// - A call moves ESP outside the `i32` range.
@@ -184,7 +184,7 @@ impl<'a> FunctionStack<'a> {
             }
 
             let returns = result.graph.op_targets(index).is_empty();
-            if insn.instruction().address_width != 32 {
+            if insn.instruction().address_width != 32 && !ignores_memory_operand(insn.mnemonic()) {
                 return None; // skip 16-bit insns
             }
 
@@ -277,6 +277,7 @@ pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
             | Mnemonic::JP
             | Mnemonic::JS
             | Mnemonic::JZ
+            | Mnemonic::LOOPE
     )
 }
 

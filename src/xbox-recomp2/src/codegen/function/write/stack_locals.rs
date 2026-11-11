@@ -10,11 +10,11 @@
 
 use super::emit::ea;
 use crate::codegen::function::model::{FrameAccess, StackLocals};
-use crate::decode::Insn;
+use crate::decode::{Insn, Mnemonic};
 use core::fmt::Write as _;
 
 /// Load/store macro suffixes and their C++ types.
-const MACROS: [(&str, &str); 8] = [
+const MACROS: [(&str, &str); 10] = [
     ("U8", "uint8_t"),
     ("U16", "uint16_t"),
     ("U32", "uint32_t"),
@@ -23,6 +23,8 @@ const MACROS: [(&str, &str); 8] = [
     ("F64", "double"),
     ("PS", "x86_guest_m128_u"),
     ("APS", "x86_guest_m128"),
+    ("NTPS", "x86_guest_m128"),
+    ("NTQ", "uint64_t"),
 ];
 
 /// Macro prefixes.
@@ -50,6 +52,10 @@ pub(super) fn rewrite(
     // Memory operands.
     for &(index, offset) in &access.operands {
         let address = ea(&insn.operands()[usize::from(index)], native);
+        if insn.mnemonic() == Mnemonic::SGDT {
+            point_operand_at_frame(out, &format!("{address}+2"), offset + 2);
+        }
+
         point_operand_at_frame(out, &address, offset);
         assert!(
             !names_guest_address(out, &address),
@@ -87,6 +93,17 @@ pub(super) fn write_prologue(locals: &StackLocals, text: &mut String) {
 /// Rewrites loads and stores of `address`.
 fn point_operand_at_frame(text: &mut String, address: &str, offset: u32) {
     for prefix in PREFIXES {
+        replace_text(
+            text,
+            &format!("{prefix}LOAD_F80({address})"),
+            &format!("X86_FRAME_LOAD_F80(0x{offset:X})"),
+        );
+        replace_text(
+            text,
+            &format!("{prefix}STORE_F80({address}, "),
+            &format!("X86_FRAME_STORE_F80(0x{offset:X}, "),
+        );
+
         for (suffix, ty) in MACROS {
             replace_text(
                 text,
@@ -196,17 +213,21 @@ fn closing_paren(text: &str, open: usize) -> Option<usize> {
 
 /// Rewrites `X86_PUSH` and `X86_POP`. Returns how many.
 fn point_push_pop_at_frame(text: &mut String, offset: u32) -> usize {
-    let pushes = replace_text(
-        text,
-        "X86_PUSH(ctx, base, ",
-        &format!("X86_FRAME_PUSH(ctx, frame, 0x{offset:X}, "),
-    );
-    let pops = replace_text(
-        text,
-        "X86_POP(ctx, base)",
-        &format!("X86_FRAME_POP(ctx, frame, 0x{offset:X})"),
-    );
-    pushes + pops
+    let mut count = 0;
+    for suffix in ["", "16"] {
+        count += replace_text(
+            text,
+            &format!("X86_PUSH{suffix}(ctx, base, "),
+            &format!("X86_FRAME_PUSH{suffix}(ctx, frame, 0x{offset:X}, "),
+        );
+        count += replace_text(
+            text,
+            &format!("X86_POP{suffix}(ctx, base)"),
+            &format!("X86_FRAME_POP{suffix}(ctx, frame, 0x{offset:X})"),
+        );
+    }
+
+    count
 }
 
 /// Replaces every `from` with `to`. Returns how many.
