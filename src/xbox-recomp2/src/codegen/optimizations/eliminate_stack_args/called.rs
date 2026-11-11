@@ -225,12 +225,16 @@ mod tests {
     /// `code` may call 0x1040, which ends with a plain `ret`.
     fn find(code: &[u8]) -> Option<Called> {
         let model = analyzed_function(code);
-        let stack = FunctionStack::new(&model, |target| {
-            (target == FunctionAddress(0x1040)).then_some(CallEffect {
-                popped: 4,
-                keeps_ebp: true,
-            })
-        })
+        let stack = FunctionStack::new(
+            &model,
+            |target| {
+                (target == FunctionAddress(0x1040)).then_some(CallEffect {
+                    popped: 4,
+                    keeps_ebp: true,
+                })
+            },
+            false,
+        )
         .expect("every case is a function we can follow");
         Called::find(&model, &stack)
     }

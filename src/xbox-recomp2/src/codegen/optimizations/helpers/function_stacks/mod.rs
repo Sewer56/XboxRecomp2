@@ -62,7 +62,7 @@ impl<'a> FunctionStacks<'a> {
             return None;
         }
         let calls = |target| Some(self.entries.get(&target)?.effect);
-        let stack = FunctionStack::new(model, calls);
+        let stack = FunctionStack::new(model, calls, false);
         let effect = match &stack {
             Some(stack) => effects::from_walk(stack, calls),
             None if trust_returns => effects::trusting_ret_n(model),

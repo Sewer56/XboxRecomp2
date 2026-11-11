@@ -39,6 +39,7 @@ These move the positions:
 | `push reg/imm/[mem]`         | ESP - 4                                    |
 | `pop reg`                    | ESP + 4                                    |
 | `add esp, N` or `sub esp, N` | ESP + N or ESP - N                         |
+| `lea esp, [esp+N]`           | ESP + N                                    |
 | `mov ebp, esp`               | EBP = ESP                                  |
 | `mov esp, ebp`               | ESP = EBP                                  |
 | `leave`                      | ESP = EBP + 4; tracked EBP becomes unknown |

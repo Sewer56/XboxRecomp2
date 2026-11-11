@@ -5,7 +5,8 @@
 //! - It has no `call`, hook or failed decode.
 //! - We can track ESP on every path.
 //! - No stack address escapes, like `lea ecx, [esp+4]`.
-//! - Every slot below the entry ESP is a plain load or store.
+//! - Every slot below the entry ESP is a load, store or `_MEM` helper we can
+//!   point at `frame`.
 
 mod slot_use;
 mod slots;
@@ -15,8 +16,8 @@ use super::helpers::instruction::register_access::RegisterAccess;
 use super::helpers::stack_frame::{FrameStep, STACK_WORD_BYTES, StackFrame};
 use crate::codegen::function::model::{FunctionModel, Op, StackLocals};
 use crate::decode::{
-    DecodedOperand, Insn, MemoryInfo, Mnemonic, OperandAction, OperandVisibility, Register, memory,
-    register,
+    DecodedOperand, Insn, InstructionAttributes, MemoryInfo, Mnemonic, OperandAction,
+    OperandVisibility, Register, memory, register,
 };
 use slot_use::SlotUse;
 use slots::{OperandIndex, Slots};
@@ -48,7 +49,7 @@ fn make_plan_for_model(model: &FunctionModel) -> Option<StackLocals> {
         return None;
     }
 
-    let stack = FunctionStack::new(model, no_calls)?;
+    let stack = FunctionStack::new(model, no_calls, true)?;
 
     // Collect each instruction's stack slots.
     let mut used = Vec::new();
@@ -129,13 +130,17 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
 /// Whether `insn` leaks a stack address, like `lea ecx, [esp+4]`.
 fn leaks_stack_address(insn: &Insn, frame: StackFrame) -> bool {
     let operands = insn.operands();
+    // Moving ESP itself is fine, like `lea esp, [esp+8]`.
+    if StackFrame::adjustment(insn).is_some() || copies_esp_or_ebp(insn) {
+        return false;
+    }
+
     match insn.mnemonic() {
         Mnemonic::LEA => memory(&operands[1]).is_some_and(|mem| uses_stack_register(mem, frame)),
 
         Mnemonic::PUSH => register(&operands[0]).is_some_and(|reg| points_into_stack(reg, frame)),
 
         Mnemonic::POP | Mnemonic::RET | Mnemonic::LEAVE => false,
-        _ if StackFrame::adjustment(insn).is_some() || copies_esp_or_ebp(insn) => false,
 
         _ => {
             let access = RegisterAccess::of(insn);
@@ -180,6 +185,11 @@ fn push_pop_slot(insn: &Insn, frame: StackFrame) -> SlotUse {
 
 /// Slot of a visible memory operand.
 fn operand_slot(insn: &Insn, operand: &DecodedOperand, frame: StackFrame) -> SlotUse {
+    // `lea` only computes an address. `leaks_stack_address` checks it.
+    if insn.mnemonic() == Mnemonic::LEA {
+        return SlotUse::Outside;
+    }
+
     let mem = match memory(operand) {
         Some(mem) => mem,
         None => return SlotUse::Outside,
@@ -203,7 +213,7 @@ fn operand_slot(insn: &Insn, operand: &DecodedOperand, frame: StackFrame) -> Slo
 
     // Must fit below the entry ESP and be a plain load or store.
     let bytes = i32::from(operand.size.div_ceil(8));
-    if start + bytes > 0 || !can_rewrite_operand(insn.mnemonic(), operand.size, operand.action) {
+    if start + bytes > 0 || !can_rewrite_operand(insn, operand.size, operand.action) {
         return SlotUse::Unsupported;
     }
 
@@ -240,9 +250,9 @@ fn copies_esp_or_ebp(insn: &Insn) -> bool {
         )
 }
 
-/// Whether the operand is emitted as `X86_LOAD_*` or `X86_STORE_*`.
+/// Whether the operand is emitted as `X86_LOAD_*`, `X86_STORE_*` or a `_MEM` helper.
 /// i.e. Code we can rewrite.
-fn can_rewrite_operand(mnemonic: Mnemonic, bits: u16, action: OperandAction) -> bool {
+fn can_rewrite_operand(insn: &Insn, bits: u16, action: OperandAction) -> bool {
     if !matches!(bits, 8 | 16 | 32 | 64 | 128) {
         return false;
     }
@@ -250,10 +260,45 @@ fn can_rewrite_operand(mnemonic: Mnemonic, bits: u16, action: OperandAction) -> 
     let reads = action.intersects(OperandAction::READ | OperandAction::CONDREAD);
     let writes = action.intersects(OperandAction::WRITE | OperandAction::CONDWRITE);
     match (reads, writes) {
-        // Read-modify-write uses `_MEM` helpers.
-        (true, true) => false,
-        (false, true) => stores_with_macro(mnemonic),
-        _ => loads_with_macro(mnemonic, bits),
+        (true, true) => modifies_with_helper(insn),
+        (false, true) => stores_with_macro(insn.mnemonic()),
+        _ => loads_with_macro(insn.mnemonic()),
+    }
+}
+
+/// Whether we can rewrite this read-modify-write.
+///
+/// e.g. `and [esp+4], 0xFF` becomes `X86_AND32_MEM(ctx.esp.u32 + 4, 0xff, ctx, base)`.
+fn modifies_with_helper(insn: &Insn) -> bool {
+    match insn.mnemonic() {
+        // `lock xadd` is atomic, with its own helper.
+        Mnemonic::XADD => !insn
+            .instruction()
+            .attributes
+            .contains(InstructionAttributes::HAS_LOCK),
+
+        mnemonic => matches!(
+            mnemonic,
+            Mnemonic::ADD
+                | Mnemonic::ADC
+                | Mnemonic::SUB
+                | Mnemonic::SBB
+                | Mnemonic::AND
+                | Mnemonic::OR
+                | Mnemonic::XOR
+                | Mnemonic::INC
+                | Mnemonic::DEC
+                | Mnemonic::NEG
+                | Mnemonic::NOT
+                | Mnemonic::SHL
+                | Mnemonic::SHR
+                | Mnemonic::SAR
+                | Mnemonic::ROL
+                | Mnemonic::ROR
+                | Mnemonic::RCR
+                | Mnemonic::SHLD
+                | Mnemonic::SHRD
+        ),
     }
 }
 
@@ -269,36 +314,46 @@ fn stores_with_macro(mnemonic: Mnemonic) -> bool {
             | Mnemonic::MOVSS
             | Mnemonic::MOVAPS
             | Mnemonic::MOVUPS
+            | Mnemonic::MOVLPS
+            | Mnemonic::MOVHPS
+            | Mnemonic::MOVD
+            | Mnemonic::MOVQ
             | Mnemonic::FST
             | Mnemonic::FSTP
             | Mnemonic::FISTP
+            | Mnemonic::FNSTCW
+            | Mnemonic::FNSTSW
+            | Mnemonic::STMXCSR
+            | Mnemonic::SETB
+            | Mnemonic::SETBE
+            | Mnemonic::SETL
+            | Mnemonic::SETLE
+            | Mnemonic::SETNB
+            | Mnemonic::SETNBE
+            | Mnemonic::SETNL
+            | Mnemonic::SETNLE
+            | Mnemonic::SETNO
+            | Mnemonic::SETNP
+            | Mnemonic::SETNS
+            | Mnemonic::SETNZ
+            | Mnemonic::SETO
+            | Mnemonic::SETP
+            | Mnemonic::SETS
+            | Mnemonic::SETZ
     )
 }
 
-/// Whether the emitter reads this operand with `X86_LOAD_*`.
+/// Whether the emitter reads this operand with `X86_LOAD_*`, or something we can rewrite.
 ///
 /// e.g.
 /// - `mov eax, [esp+4]`: yes, `X86_LOAD_U32(ctx.esp.u32 + 4)`.
-/// - `paddw xmm0, [esp]`: no, reads through a raw pointer.
-/// - `fldcw [esp]`: no, has its own helper.
+/// - `paddw xmm0, [esp]`: yes, `base + (ctx.esp.u32)` becomes `frame + 0x10`.
+/// - `cvttss2si eax, [esp]`: yes, `X86_CVTSS2SI_MEM` is a `_MEM` helper.
+/// - `frstor [esp]`: no, has its own helper.
 ///
 /// Most do, so we list the ones that don't.
-fn loads_with_macro(mnemonic: Mnemonic, bits: u16) -> bool {
-    // XMM forms of these read through a raw pointer.
-    let raw_xmm_load = bits == 128
-        && matches!(
-            mnemonic,
-            Mnemonic::PACKSSDW
-                | Mnemonic::PACKUSWB
-                | Mnemonic::PADDW
-                | Mnemonic::PSRAW
-                | Mnemonic::PSRLQ
-                | Mnemonic::PUNPCKHWD
-                | Mnemonic::PUNPCKLWD
-        );
-
-    // These have their own helpers.
-    let own_helper = matches!(
+fn loads_with_macro(mnemonic: Mnemonic) -> bool {
+    !matches!(
         mnemonic,
         Mnemonic::MOVNTPS
             | Mnemonic::MOVNTQ
@@ -307,20 +362,9 @@ fn loads_with_macro(mnemonic: Mnemonic, bits: u16) -> bool {
             | Mnemonic::XADD
             | Mnemonic::FNSAVE
             | Mnemonic::FRSTOR
-            | Mnemonic::FLDCW
-            | Mnemonic::FNSTCW
-            | Mnemonic::FNSTSW
-            | Mnemonic::LDMXCSR
-            | Mnemonic::STMXCSR
             | Mnemonic::CALL
             | Mnemonic::JMP
-            | Mnemonic::CVTSS2SI
-            | Mnemonic::CVTTSS2SI
-            | Mnemonic::MOVLPS
-            | Mnemonic::MOVHPS
-    );
-
-    !raw_xmm_load && !own_helper
+    )
 }
 
 #[cfg(test)]
@@ -332,6 +376,7 @@ mod tests {
     /// `(address, operand offsets, push/pop offset)` per instruction.
     fn frame_offsets(locals: &StackLocals) -> Vec<(u32, Vec<u32>, Option<u32>)> {
         let entries = locals.instructions.iter();
+
         entries
             .map(|(address, access)| {
                 let operands = access.operands.iter().map(|&(_, offset)| offset).collect();
@@ -470,17 +515,15 @@ mod tests {
         0x5E,                         // pop  esi
         0xC3,                         // ret
     ])]
-    #[case::read_modify_write(&[
+    #[case::own_helper(&[
         0x56,                         // push esi
-        0x01, 0x04, 0x24,             // add  [esp], eax ; <- `_MEM` helper
+        0x87, 0x04, 0x24,             // xchg [esp], eax ; <- atomic helper
         0x5E,                         // pop  esi
         0xC3,                         // ret
     ])]
-    #[case::raw_xmm_load(&[
-        0x83, 0xEC, 0x10,             // sub  esp, 16
-        0x66, 0x0F, 0xFD, 0x04, 0x24, // paddw xmm0, [esp] ; <- raw pointer load
-        0x83, 0xC4, 0x10,             // add  esp, 16
-        0xC3,                         // ret
+    #[case::jump_with_slots_live(&[
+        0x56,                         // push esi
+        0xE9, 0x3A, 0x00, 0x00, 0x00, // jmp  0x1040 ; <- ESP not back at entry
     ])]
     #[case::no_slots(&[
         0x8B, 0x44, 0x24, 0x04,       // mov  eax, [esp+4] ; argument only

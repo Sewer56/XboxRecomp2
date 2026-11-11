@@ -50,8 +50,8 @@ On exit, we don't write it back.
 - has no `call`, [midasm hook] or undecoded code
 - has an ESP we can [track][Stack Tracking] on every path
 - never leaks a stack address, like `lea ecx, [esp+4]` or `push esp`
-- only touches the stack in ways we can rewrite, like `push`, `pop` or
-  `mov [esp+4], eax`.
+- only touches the stack in ways we can rewrite, like `push`, `pop`,
+  `mov [esp+4], eax` or `and [esp+4], 0xFF`.
 
 ## Before and after
 

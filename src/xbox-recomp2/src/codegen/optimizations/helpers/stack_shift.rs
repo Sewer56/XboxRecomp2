@@ -382,7 +382,7 @@ mod tests {
     /// Shifts everything in `code` from argument 0 (entry ESP + 4) up by 4.
     fn shift(code: &[u8]) -> Option<Vec<i64>> {
         let mut model = analyzed_function(code);
-        let stack = FunctionStack::new(&model, no_calls).unwrap();
+        let stack = FunctionStack::new(&model, no_calls, false).unwrap();
         StackShift::find(&stack, 4, 4)?.apply(&mut model);
         Some(displacements(&model))
     }
@@ -574,7 +574,7 @@ mod tests {
         // Act
         // Shift by 4 twice, so the second `find` sees the first one's edits.
         for _ in 0..2 {
-            let stack = FunctionStack::new(&model, no_calls).unwrap();
+            let stack = FunctionStack::new(&model, no_calls, false).unwrap();
             StackShift::find(&stack, 4, 4).unwrap().apply(&mut model);
         }
 
@@ -810,7 +810,7 @@ mod tests {
     /// Shifts everything from argument 0 down by 4, onto the return address.
     fn shift_down(code: &[u8]) -> Option<Vec<i64>> {
         let mut model = analyzed_function(code);
-        let stack = FunctionStack::new(&model, no_calls).unwrap();
+        let stack = FunctionStack::new(&model, no_calls, false).unwrap();
         StackShift::find(&stack, 4, -4)?.apply(&mut model);
         Some(displacements(&model))
     }

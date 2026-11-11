@@ -5,6 +5,8 @@
 //! | `X86_LOAD_U32(ctx.esp.u32 + 0x14)`               | `X86_FRAME_LOAD(uint32_t, 0x1C)`               |
 //! | `X86_STORE_U32(ctx.esp.u32 + 0x14, ctx.eax.u32)` | `X86_FRAME_STORE(uint32_t, 0x1C, ctx.eax.u32)` |
 //! | `X86_PUSH(ctx, base, ctx.esi.u32)`               | `X86_FRAME_PUSH(ctx, frame, 0x8, ctx.esi.u32)` |
+//! | `X86_AND32_MEM(ctx.esp.u32, 0xff, ctx, base)`    | `X86_AND32_MEM<false>(0x8, 0xff, ctx, frame)`  |
+//! | `base + (ctx.esp.u32)`                           | `frame + 0x8`                                  |
 
 use super::emit::ea;
 use crate::codegen::function::model::{FrameAccess, StackLocals};
@@ -105,6 +107,91 @@ fn point_operand_at_frame(text: &mut String, address: &str, offset: u32) {
         &format!("X86_MMX_LOAD({address})"),
         &format!("X86_FRAME_LOAD(uint64_t, 0x{offset:X})"),
     );
+
+    // Raw pointers: `base + (addr)` -> `frame + 0xC`
+    replace_text(
+        text,
+        &format!("base + ({address})"),
+        &format!("frame + 0x{offset:X}"),
+    );
+
+    point_helpers_at_frame(text, address, offset);
+}
+
+/// Rewrites `_MEM` helpers, like `X86_AND32_MEM`, to use `frame`.
+///
+/// | Before                                                | After                                                  |
+/// | ----------------------------------------------------- | ------------------------------------------------------ |
+/// | `X86_AND32_MEM(ctx.esp.u32 + 0x4, 0xff, ctx, base)`   | `X86_AND32_MEM<false>(0xC, 0xff, ctx, frame)`          |
+/// | `X86_DEC32_MEM<true, 0x40>(ctx.esp.u32, ctx, base)`   | `X86_DEC32_MEM<false, 0x40>(0x8, ctx, frame)`          |
+fn point_helpers_at_frame(text: &mut String, address: &str, offset: u32) {
+    let call = format!("({address}, ");
+    let mut search = 0;
+    while let Some(found) = text[search..].find(&call) {
+        let open = search + found;
+        search = open + 1;
+
+        // Find `X86_DEC32_MEM` in `X86_DEC32_MEM<true, 0x40>(`.
+        let (name_end, template) = match text[..open].strip_suffix('>') {
+            Some(before) => match before.rfind('<') {
+                Some(start) => (start, Some(&text[start + 1..open - 1])),
+                None => continue,
+            },
+            None => (open, None),
+        };
+
+        let name_start = text[..name_end]
+            .rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .map_or(0, |at| at + 1);
+
+        if !text[name_start..name_end].ends_with("_MEM") {
+            continue;
+        }
+
+        // Find the `base` argument.
+        // e.g. `ctx, base)` or `base, true)` for `X86_CVTSS2SI_MEM`.
+        let close = match closing_paren(text, open) {
+            Some(close) => close,
+            None => continue,
+        };
+        let args = &text[open..close + 1];
+        let base = match args.rfind(", base)").or_else(|| args.rfind(", base,")) {
+            Some(at) => open + at + ", ".len(),
+            None => continue,
+        };
+
+        // `<true, 0x40>` -> `<false, 0x40>`
+        // ``             -> `<false>`
+        let template = match template.and_then(|args| args.split_once(',')) {
+            Some((_, mask)) => format!("<false,{mask}>"),
+            None => "<false>".to_string(),
+        };
+
+        // Now replace from the back
+        text.replace_range(base..base + "base".len(), "frame");
+        text.replace_range(open + 1..open + 1 + address.len(), &format!("0x{offset:X}"));
+        text.replace_range(name_end..open, &template);
+        search = name_end;
+    }
+}
+
+/// Index of the `)` that closes the `(` at `open`.
+fn closing_paren(text: &str, open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (at, c) in text[open..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(open + at);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 /// Rewrites `X86_PUSH` and `X86_POP`. Returns how many.
@@ -184,6 +271,34 @@ mod tests {
         &[],
         Some(0x8),
         "ctx.esp.u32 = ctx.ebp.u32;\nctx.ebp.u32 = X86_FRAME_POP(ctx, frame, 0x8);",
+    )]
+    #[case::helper(
+        &[0x83, 0x24, 0x24, 0x0F], // and [esp], 0xF
+        "X86_AND32_MEM(ctx.esp.u32, 0xf, ctx, base);",
+        &[(0, 0xC)],
+        None,
+        "X86_AND32_MEM<false>(0xC, 0xf, ctx, frame);",
+    )]
+    #[case::helper_with_flags(
+        &[0xFF, 0x0C, 0x24], // dec [esp]
+        "X86_DEC32_MEM<true, 0x40>(ctx.esp.u32, ctx, base);",
+        &[(0, 0xC)],
+        None,
+        "X86_DEC32_MEM<false, 0x40>(0xC, ctx, frame);",
+    )]
+    #[case::helper_base_not_last(
+        &[0xF3, 0x0F, 0x2C, 0x04, 0x24], // cvttss2si eax, [esp]
+        "X86_CVTSS2SI_MEM(ctx.esp.u32, ctx.eax.u32, base, true);",
+        &[(1, 0xC)],
+        None,
+        "X86_CVTSS2SI_MEM<false>(0xC, ctx.eax.u32, frame, true);",
+    )]
+    #[case::raw_pointer(
+        &[0x66, 0x0F, 0xFD, 0x04, 0x24], // paddw xmm0, [esp]
+        "_mm_loadu_si128(reinterpret_cast<const __m128i*>(base + (ctx.esp.u32)));",
+        &[(1, 0xC)],
+        None,
+        "_mm_loadu_si128(reinterpret_cast<const __m128i*>(frame + 0xC));",
     )]
     #[case::push_of_slot(
         &[0xFF, 0x34, 0x24], // push [esp]

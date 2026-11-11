@@ -66,7 +66,7 @@ fn try_plan_shift(model: &FunctionModel) -> Option<StackShift> {
     if !model.can_change_abi() || model.entry != Entry::First {
         return None;
     }
-    let stack = FunctionStack::new(model, no_calls)?;
+    let stack = FunctionStack::new(model, no_calls, false)?;
     if stack.return_slot_bytes != STACK_WORD_BYTES {
         return None; // already done
     }

@@ -193,7 +193,7 @@ impl StackFrame {
         Some(())
     }
 
-    /// Returns how much `add esp, N` or `sub esp, N` adds to ESP.
+    /// Returns how much `add esp, N`, `sub esp, N` or `lea esp, [esp+N]` adds to ESP.
     ///
     /// For example, `sub esp, 8` gives -8.
     pub(in crate::codegen) fn adjustment(insn: &Insn) -> Option<i32> {
@@ -202,6 +202,15 @@ impl StackFrame {
             || register(&insn.operands()[0]) != Some(Register::ESP)
         {
             return None;
+        }
+
+        if insn.mnemonic() == Mnemonic::LEA {
+            let mem = memory(&insn.operands()[1])?;
+            if mem.base != Register::ESP || mem.index != Register::NONE {
+                return None;
+            }
+
+            return i32::try_from(mem.disp.displacement).ok();
         }
 
         let value = i32::try_from(immediate_signed(&insn.operands()[1])?).ok()?;
@@ -228,6 +237,8 @@ mod tests {
     #[case::push(&[0x56], Some((-4, Some(-8))))] // push esi
     #[case::push_immediate(&[0x6A, 1], Some((-4, Some(-8))))] // push 1
     #[case::allocate(&[0x83, 0xEC, 16], Some((-16, Some(-8))))] // sub esp, 16
+    #[case::lea_adjust(&[0x8D, 0x64, 0x24, 8], Some((8, Some(-8))))] // lea esp, [esp+8]
+    #[case::lea_from_ebp(&[0x8D, 0x65, 0xF8], None)] // lea esp, [ebp-8]
     #[case::set_base(&[0x89, 0xE5], Some((0, Some(0))))] // mov ebp, esp
     #[case::restore(&[0x89, 0xEC], Some((-8, Some(-8))))] // mov esp, ebp
     #[case::leave(&[0xC9], Some((-4, None)))] // leave
