@@ -88,7 +88,7 @@ Same as `nonvolatile_stack`.
 
     ```cpp
     // mov ecx, [ebp+0x10]
-    ctx.ecx.u32 = X86_STACK_LOAD_U32(ctx.ebp.u32 + 0x10);
+    ctx.ecx.u32 = X86_NONVOLATILE_LOAD_U32(ctx.ebp.u32 + 0x10);
     ```
 
 ### Results

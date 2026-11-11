@@ -12,6 +12,11 @@
 #define X86_RECOMP_DEBUG 0
 #endif
 
+// Whether the nonvolatile_memory speed hack is on.
+#ifndef X86_NONVOLATILE_MEMORY
+#define X86_NONVOLATILE_MEMORY 0
+#endif
+
 // Tells the compiler a point is never reached. The switch `default` case uses
 // it when debug is off.
 #if defined(_MSC_VER)
@@ -230,12 +235,12 @@ typedef float x86_guest_m128 __attribute__((vector_size(16), aligned(16), may_al
 #define X86_STORE_APS(addr, val) (*reinterpret_cast<volatile x86_guest_m128*>(base + (addr)) = (val))
 
 // The plain_sse_memory speed hack drops volatile, so Clang can merge or drop these.
-#define X86_PLAIN_LOAD_PS(addr) (*reinterpret_cast<const x86_guest_m128_u*>(base + (addr)))
-#define X86_PLAIN_STORE_PS(addr, val) (*reinterpret_cast<x86_guest_m128_u*>(base + (addr)) = (val))
-#define X86_PLAIN_LOAD_APS(addr) (*reinterpret_cast<const x86_guest_m128*>(base + (addr)))
-#define X86_PLAIN_STORE_APS(addr, val) (*reinterpret_cast<x86_guest_m128*>(base + (addr)) = (val))
+#define X86_NONVOLATILE_LOAD_PS(addr) (*reinterpret_cast<const x86_guest_m128_u*>(base + (addr)))
+#define X86_NONVOLATILE_STORE_PS(addr, val) (*reinterpret_cast<x86_guest_m128_u*>(base + (addr)) = (val))
+#define X86_NONVOLATILE_LOAD_APS(addr) (*reinterpret_cast<const x86_guest_m128*>(base + (addr)))
+#define X86_NONVOLATILE_STORE_APS(addr, val) (*reinterpret_cast<x86_guest_m128*>(base + (addr)) = (val))
 
-// Speed hack: `nonvolatile_stack` uses `Volatile = false` guest stack accesses.
+// Speed hacks: `nonvolatile_stack` and `nonvolatile_memory` use `Volatile = false` accesses.
 template<typename T, bool Volatile>
 struct x86_slot { typedef volatile T type; };
 template<typename T>
@@ -244,30 +249,26 @@ struct x86_slot<T, false> { typedef T __attribute__((may_alias)) type; };
 #define X86_LOAD_AS(T, Volatile, addr) (*reinterpret_cast<typename x86_slot<T, Volatile>::type*>(base + (addr)))
 #define X86_STORE_AS(T, Volatile, addr, value) (X86_LOAD_AS(T, Volatile, addr) = (value))
 
-#define X86_STACK_LOAD_U8(addr)  X86_LOAD_AS(uint8_t, false, addr)
-#define X86_STACK_LOAD_U16(addr) X86_LOAD_AS(uint16_t, false, addr)
-#define X86_STACK_LOAD_U32(addr) X86_LOAD_AS(uint32_t, false, addr)
-#define X86_STACK_LOAD_U64(addr) X86_LOAD_AS(uint64_t, false, addr)
-#define X86_STACK_LOAD_F32(addr) X86_LOAD_AS(float, false, addr)
-#define X86_STACK_LOAD_F64(addr) X86_LOAD_AS(double, false, addr)
-#define X86_STACK_LOAD_PS(addr) X86_PLAIN_LOAD_PS(addr)
-#define X86_STACK_LOAD_APS(addr) X86_PLAIN_LOAD_APS(addr)
+#define X86_NONVOLATILE_LOAD_U8(addr)  X86_LOAD_AS(uint8_t, false, addr)
+#define X86_NONVOLATILE_LOAD_U16(addr) X86_LOAD_AS(uint16_t, false, addr)
+#define X86_NONVOLATILE_LOAD_U32(addr) X86_LOAD_AS(uint32_t, false, addr)
+#define X86_NONVOLATILE_LOAD_U64(addr) X86_LOAD_AS(uint64_t, false, addr)
+#define X86_NONVOLATILE_LOAD_F32(addr) X86_LOAD_AS(float, false, addr)
+#define X86_NONVOLATILE_LOAD_F64(addr) X86_LOAD_AS(double, false, addr)
 
-#define X86_STACK_STORE_U8(addr, value)  X86_STORE_AS(uint8_t, false, addr, value)
-#define X86_STACK_STORE_U16(addr, value) X86_STORE_AS(uint16_t, false, addr, value)
-#define X86_STACK_STORE_U32(addr, value) X86_STORE_AS(uint32_t, false, addr, value)
-#define X86_STACK_STORE_U64(addr, value) X86_STORE_AS(uint64_t, false, addr, value)
-#define X86_STACK_STORE_F32(addr, value) X86_STORE_AS(float, false, addr, static_cast<float>(value))
-#define X86_STACK_STORE_F64(addr, value) X86_STORE_AS(double, false, addr, static_cast<double>(value))
-#define X86_STACK_STORE_PS(addr, val) X86_PLAIN_STORE_PS(addr, val)
-#define X86_STACK_STORE_APS(addr, val) X86_PLAIN_STORE_APS(addr, val)
+#define X86_NONVOLATILE_STORE_U8(addr, value)  X86_STORE_AS(uint8_t, false, addr, value)
+#define X86_NONVOLATILE_STORE_U16(addr, value) X86_STORE_AS(uint16_t, false, addr, value)
+#define X86_NONVOLATILE_STORE_U32(addr, value) X86_STORE_AS(uint32_t, false, addr, value)
+#define X86_NONVOLATILE_STORE_U64(addr, value) X86_STORE_AS(uint64_t, false, addr, value)
+#define X86_NONVOLATILE_STORE_F32(addr, value) X86_STORE_AS(float, false, addr, static_cast<float>(value))
+#define X86_NONVOLATILE_STORE_F64(addr, value) X86_STORE_AS(double, false, addr, static_cast<double>(value))
 
 #if defined(X86_HOST_X86)
-#define X86_STACK_LOAD_F80(addr) X86_LOAD_AS(long double, false, addr)
-#define X86_STACK_STORE_F80(addr, value) X86_STORE_AS(long double, false, addr, static_cast<long double>(value))
+#define X86_NONVOLATILE_LOAD_F80(addr) X86_LOAD_AS(long double, false, addr)
+#define X86_NONVOLATILE_STORE_F80(addr, value) X86_STORE_AS(long double, false, addr, static_cast<long double>(value))
 #else
-#define X86_STACK_LOAD_F80(addr) X86_LOAD_F80(addr)
-#define X86_STACK_STORE_F80(addr, value) X86_STORE_F80(addr, value)
+#define X86_NONVOLATILE_LOAD_F80(addr) X86_LOAD_F80(addr)
+#define X86_NONVOLATILE_STORE_F80(addr, value) X86_STORE_F80(addr, value)
 #endif
 
 // The streaming intrinsic drops volatile; assembly keeps the x86 streaming store.
@@ -415,7 +416,7 @@ X86_FORCEINLINE bool x86_rep_stos_memset(uint8_t* base, uint32_t& edi, uint32_t&
 // On x86, xchg always locks memory, so relaxed is enough.
 // volatile stops guest memory reads and writes moving around it.
 // Other hosts keep seq_cst.
-#if defined(X86_HOST_X86)
+#if defined(X86_HOST_X86) && !X86_NONVOLATILE_MEMORY
 #define X86_ATOMIC_XCHG_U8(addr, value)  std::atomic_exchange_explicit(reinterpret_cast<volatile std::atomic<uint8_t>*>(base + (addr)), static_cast<uint8_t>(value), std::memory_order_relaxed)
 #define X86_ATOMIC_XCHG_U16(addr, value) std::atomic_exchange_explicit(reinterpret_cast<volatile std::atomic<uint16_t>*>(base + (addr)), static_cast<uint16_t>(value), std::memory_order_relaxed)
 #define X86_ATOMIC_XCHG_U32(addr, value) std::atomic_exchange_explicit(reinterpret_cast<volatile std::atomic<uint32_t>*>(base + (addr)), static_cast<uint32_t>(value), std::memory_order_relaxed)
@@ -426,7 +427,7 @@ X86_FORCEINLINE bool x86_rep_stos_memset(uint8_t* base, uint32_t& edi, uint32_t&
 #endif
 
 // Same for lock xadd.
-#if defined(X86_HOST_X86)
+#if defined(X86_HOST_X86) && !X86_NONVOLATILE_MEMORY
 #define X86_ATOMIC_XADD_U8(addr, value)  std::atomic_fetch_add_explicit(reinterpret_cast<volatile std::atomic<uint8_t>*>(base + (addr)), static_cast<uint8_t>(value), std::memory_order_relaxed)
 #define X86_ATOMIC_XADD_U16(addr, value) std::atomic_fetch_add_explicit(reinterpret_cast<volatile std::atomic<uint16_t>*>(base + (addr)), static_cast<uint16_t>(value), std::memory_order_relaxed)
 #define X86_ATOMIC_XADD_U32(addr, value) std::atomic_fetch_add_explicit(reinterpret_cast<volatile std::atomic<uint32_t>*>(base + (addr)), static_cast<uint32_t>(value), std::memory_order_relaxed)
@@ -1358,7 +1359,7 @@ struct X87FPU
                 if constexpr (Volatile)
                     X86_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
                 else
-                    X86_STACK_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
+                    X86_NONVOLATILE_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
             }
         }
         else
@@ -1374,7 +1375,7 @@ struct X87FPU
                 if constexpr (Volatile)
                     X86_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
                 else
-                    X86_STACK_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
+                    X86_NONVOLATILE_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
             }
         }
     }
@@ -1396,7 +1397,7 @@ struct X87FPU
                 if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 28 + i * 10);
                 else
-                    st[(top + i) & 7] = X86_STACK_LOAD_F80(addr + 28 + i * 10);
+                    st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 28 + i * 10);
             }
         }
         else
@@ -1413,7 +1414,7 @@ struct X87FPU
                 if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 14 + i * 10);
                 else
-                    st[(top + i) & 7] = X86_STACK_LOAD_F80(addr + 14 + i * 10);
+                    st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 14 + i * 10);
             }
         }
     }
@@ -2138,7 +2139,7 @@ X86_FORCEINLINE void X86_OUT32(X86Context& __restrict, uint16_t, uint32_t) {}
 template<typename T>
 X86_FORCEINLINE bool X86_ATOMIC_CMPXCHG(uint8_t* base, uintptr_t addr, T& expected, T desired)
 {
-#if defined(X86_HOST_X86)
+#if defined(X86_HOST_X86) && !X86_NONVOLATILE_MEMORY
     auto* ptr = reinterpret_cast<volatile std::atomic<T>*>(base + addr);
     return std::atomic_compare_exchange_strong_explicit(ptr, &expected, desired, std::memory_order_relaxed,
                                                         std::memory_order_relaxed);

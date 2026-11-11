@@ -4,17 +4,20 @@
 //! - [`OpGraph::edges`] returns every way one op can continue, including jumps
 //!   out of the function.
 //! - [`OpGraph::hook`] returns the mid-assembly hook that runs before an op.
+//! - [`Predecessors`] lists the ops that can run right before each op.
 
 use crate::codegen::function::model::{
     Entry, FunctionModel, GuestOp, MergedCmpJmp, MergedInstructionKind, Op,
 };
 use crate::utils::flat_lists::FlatLists;
 use op_resolver::{BlockIndex, LabelAddress, OpResolver};
+pub(in crate::codegen::optimizations) use predecessors::Predecessors;
 use std::collections::BTreeMap;
 use xbox_recomp2_executable::GuestAddress32;
 
 mod edges;
 mod op_resolver;
+mod predecessors;
 
 /// An op's position in an [`OpGraph`], across all blocks of a function.
 pub(in crate::codegen) type OpIndex = usize;

@@ -1,10 +1,10 @@
 //! Lists the operations that can run right before each operation.
 
-use crate::codegen::optimizations::helpers::op_graph::OpIndex;
+use super::OpIndex;
 use crate::utils::flat_lists::{FlatLists, FlatListsBuilder};
 
 /// Operations that can run right before each operation.
-pub(super) struct Predecessors {
+pub(in crate::codegen::optimizations) struct Predecessors {
     lists: FlatLists<u32>,
 }
 
@@ -15,7 +15,10 @@ impl Predecessors {
     ///
     /// - `count`: number of operations.
     /// - `links`: each `(from, to)` pair where `to` can run right after `from`.
-    pub(super) fn new(count: usize, links: impl IntoIterator<Item = (u32, u32)>) -> Self {
+    pub(in crate::codegen::optimizations) fn new(
+        count: usize,
+        links: impl IntoIterator<Item = (u32, u32)>,
+    ) -> Self {
         // Step 1: give each operation its own list.
         //
         // grouped is a `to -> from` mapping
@@ -41,7 +44,10 @@ impl Predecessors {
     }
 
     /// Operations that can run right before the one at `index`.
-    pub(super) fn of(&self, index: OpIndex) -> impl Iterator<Item = OpIndex> + '_ {
+    pub(in crate::codegen::optimizations) fn of(
+        &self,
+        index: OpIndex,
+    ) -> impl Iterator<Item = OpIndex> + '_ {
         let previous = self.lists.get(index);
         previous.iter().map(|&operation| operation as OpIndex)
     }

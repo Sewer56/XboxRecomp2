@@ -36,6 +36,7 @@
 //! Walking one function's ops:
 //!
 //! - [`op_graph`]: its ops, where each can go next, and where its hooks go.
+//! - [`loops`]: the loops in an [`op_graph`].
 //!
 //! Single instructions, used by the helpers above:
 //!
@@ -49,6 +50,7 @@ pub(in crate::codegen) mod function_stack;
 pub(in crate::codegen) mod function_stacks;
 pub(in crate::codegen) mod instruction;
 pub(in crate::codegen) mod known_callers;
+pub(in crate::codegen) mod loops;
 pub(in crate::codegen) mod model_index;
 pub(in crate::codegen) mod needed_flags;
 pub(in crate::codegen) mod op_graph;

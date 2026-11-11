@@ -128,10 +128,10 @@ pub(super) fn packed_source(ctx: &Emitter<'_>, src: &DecodedOperand) -> Option<S
     }
 }
 
-/// Packed load/store macro prefix: `X86_PLAIN_` when `plain_sse_memory` runs.
+/// Packed load/store macro prefix: `X86_NONVOLATILE_` when `plain_sse_memory` runs.
 pub(super) fn packed_prefix(ctx: &Emitter<'_>) -> &'static str {
     if ctx.config.speed_hacks.runs_plain_sse_memory() {
-        "X86_PLAIN_"
+        "X86_NONVOLATILE_"
     } else {
         "X86_"
     }

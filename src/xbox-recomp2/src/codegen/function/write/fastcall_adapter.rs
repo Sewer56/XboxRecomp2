@@ -26,8 +26,18 @@ use crate::templates::FASTCALL_SUFFIX;
 use core::fmt::Write as _;
 
 /// Appends the original entry, `name`, to `text`.
-pub(super) fn write(fastcall: &FastcallConvention, name: &str, text: &mut String) {
+pub(super) fn write(
+    fastcall: &FastcallConvention,
+    name: &str,
+    nonvolatile: bool,
+    text: &mut String,
+) {
     let _ = writeln!(text, "X86_PROTECTED_FUNC({name}) {{");
+    let load = if nonvolatile {
+        "X86_NONVOLATILE_LOAD"
+    } else {
+        "X86_LOAD"
+    };
 
     // Load the register arguments first.
     for &(argument, register) in &fastcall.register_arguments {
@@ -38,11 +48,11 @@ pub(super) fn write(fastcall: &FastcallConvention, name: &str, text: &mut String
             let index = xmm_index(register);
             writeln!(
                 text,
-                "\tctx.xmm[{index}].reg = _mm_set_ss(X86_LOAD_F32({address}));"
+                "\tctx.xmm[{index}].reg = _mm_set_ss({load}_F32({address}));"
             )
         } else {
             let destination = get_x86_reg(register);
-            writeln!(text, "\t{destination} = X86_LOAD_U32({address});")
+            writeln!(text, "\t{destination} = {load}_U32({address});")
         };
     }
 

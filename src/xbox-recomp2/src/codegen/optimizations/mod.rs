@@ -12,6 +12,7 @@ mod eliminate_dead_x87_status;
 pub(in crate::codegen) mod eliminate_return_slot;
 pub(in crate::codegen) mod eliminate_stack_args;
 mod find_ebp_frames;
+mod find_nonvolatile_memory;
 mod find_string_direction;
 pub(in crate::codegen) mod helpers;
 mod idiv32_after_cdq;
@@ -97,5 +98,9 @@ pub(crate) fn run(
 
     if switches.runs_find_string_direction() {
         find_string_direction::run(models, diag);
+    }
+
+    if hacks.runs_nonvolatile_memory() || hacks.runs_nonvolatile_stack() {
+        find_nonvolatile_memory::run(models, hacks);
     }
 }

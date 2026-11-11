@@ -44,6 +44,10 @@ pub struct SpeedHacks {
     /// Let the compiler merge or drop packed SSE loads and stores.
     pub plain_sse_memory: bool,
 
+    /// Let the compiler merge, reorder or drop guest loads and stores.
+    /// Enable `nonvolatile_stack` to also allow this for stack.
+    pub nonvolatile_memory: bool,
+
     /// CMOVcc reads a memory source only when it moves.
     pub lazy_cmov_load: bool,
 
@@ -99,6 +103,11 @@ impl SpeedHacks {
         self.enabled && self.plain_sse_memory
     }
 
+    /// Do safe guest loads and stores skip `volatile`?
+    pub fn runs_nonvolatile_memory(&self) -> bool {
+        self.enabled && self.nonvolatile_memory
+    }
+
     /// Does CMOVcc skip its memory read when it doesn't move?
     pub fn runs_lazy_cmov_load(&self) -> bool {
         self.enabled && self.lazy_cmov_load
@@ -132,6 +141,7 @@ impl Default for SpeedHacks {
             fast_sse_status: true,
             nonvolatile_stack: true,
             plain_sse_memory: true,
+            nonvolatile_memory: true,
             lazy_cmov_load: true,
             native_sized_addresses: true,
             rep_memmove_memset: true,
@@ -159,6 +169,7 @@ mod tests {
             SpeedHacks::runs_fast_sse_status,
             SpeedHacks::runs_nonvolatile_stack,
             SpeedHacks::runs_plain_sse_memory,
+            SpeedHacks::runs_nonvolatile_memory,
             SpeedHacks::runs_lazy_cmov_load,
             SpeedHacks::runs_native_sized_addresses,
             SpeedHacks::runs_rep_memmove_memset,
@@ -180,6 +191,7 @@ mod tests {
             fast_sse_status: own_switch,
             nonvolatile_stack: own_switch,
             plain_sse_memory: own_switch,
+            nonvolatile_memory: own_switch,
             lazy_cmov_load: own_switch,
             native_sized_addresses: own_switch,
             rep_memmove_memset: own_switch,

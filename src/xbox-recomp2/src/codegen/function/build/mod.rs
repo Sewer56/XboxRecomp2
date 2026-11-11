@@ -185,6 +185,7 @@ fn add_step(
                 needed_flags: ALL_ARITHMETIC_FLAGS,
                 direction: DirectionFlag::Unknown,
                 needed_status: ConditionCodes::all(),
+                nonvolatile: false,
             };
             if insn.mnemonic() == Mnemonic::CALL {
                 // We can do some optimisations around CALLs

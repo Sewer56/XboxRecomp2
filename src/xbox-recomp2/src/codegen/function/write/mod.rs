@@ -36,7 +36,7 @@ mod fastcall_adapter;
 mod locals;
 mod merged_cmp_jmp;
 mod midasm_hook;
-mod nonvolatile_stack;
+mod nonvolatile;
 mod x87;
 
 /// Writes `model` as the C++ function `name`, appending to `out`.
@@ -82,7 +82,8 @@ pub(super) fn write(
     write_body(context, model, scratch, state, out);
     render_into(FUNC_BODY_CLOSE, &[], &mut scratch.text);
     if protected {
-        fastcall_adapter::write(&model.fastcall, name, &mut scratch.text);
+        let nonvolatile = context.config.speed_hacks.runs_nonvolatile_stack();
+        fastcall_adapter::write(&model.fastcall, name, nonvolatile, &mut scratch.text);
     }
     out.extend_from_slice(scratch.text.as_bytes());
 }
@@ -419,7 +420,7 @@ fn write_instruction(
         write_missing(context, guest, scratch, out);
         report_failure(state, context.base, guest, false);
     } else {
-        write_code(context, guest, function_state, scratch.code.as_str(), out);
+        write_code(context, guest, scratch.code.as_str(), out);
     }
 
     if guest.last_in_function {
@@ -460,15 +461,10 @@ fn guest_emitter<'a>(
 }
 
 /// Copies `code`, written for `guest`, applying in-C++ rewrites if required.
-fn write_code(
-    context: &GenerationContext<'_>,
-    guest: &GuestOp,
-    function_state: &FunctionState,
-    code: &str,
-    out: &mut Vec<u8>,
-) {
-    if context.config.speed_hacks.runs_nonvolatile_stack() {
-        nonvolatile_stack::rewrite(&guest.insn, function_state.ebp_frame, code, out);
+fn write_code(context: &GenerationContext<'_>, guest: &GuestOp, code: &str, out: &mut Vec<u8>) {
+    let hacks = &context.config.speed_hacks;
+    if hacks.runs_nonvolatile_memory() || hacks.runs_nonvolatile_stack() {
+        nonvolatile::rewrite(code, guest.nonvolatile, hacks.runs_nonvolatile_stack(), out);
     } else {
         out.extend_from_slice(code.as_bytes());
     }
@@ -655,6 +651,7 @@ mod tests {
             needed_flags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
             needed_status: ConditionCodes::all(),
+            nonvolatile: false,
         };
         let executable = executable(&code);
         let config = RecompilerConfig {
