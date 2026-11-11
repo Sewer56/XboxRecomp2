@@ -47,6 +47,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <utility>
 #include <atomic>
 
 #include "stdio.h"
@@ -2057,6 +2058,59 @@ X86_FORCEINLINE uint16_t X86_POP16(X86Context& __restrict ctx, uint8_t* base)
     uint16_t value = X86_LOAD_AS(uint16_t, Volatile, ctx.esp.u32);
     ctx.esp.u32 += 2;
     return value;
+}
+
+// ── stack_slots_in_locals speed hack ─────────────────────────────────────────
+
+template<typename T>
+X86_FORCEINLINE T x86_frame_load(const uint8_t* slot)
+{
+    T value;
+    memcpy(&value, slot, sizeof(T));
+    return value;
+}
+
+template<typename T>
+X86_FORCEINLINE void x86_frame_store(uint8_t* slot, T value)
+{
+    memcpy(slot, &value, sizeof(T));
+}
+
+// Copies the word at `frame[offset]` in from guest memory.
+X86_FORCEINLINE void x86_frame_enter_word(uint8_t* frame, uint32_t address, uint8_t* base, uint32_t offset)
+{
+    const uint32_t word = x86_frame_load<uint32_t>(base + (address + offset));
+    x86_frame_store<uint32_t>(frame + offset, word);
+}
+
+template<uint32_t... Words>
+X86_FORCEINLINE void x86_frame_enter(uint8_t* frame, uint32_t address, uint8_t* base,
+                                     std::integer_sequence<uint32_t, Words...>)
+{
+    (x86_frame_enter_word(frame, address, base, Words * 4), ...);
+}
+
+// Fills `frame` from guest memory, one word at a time.
+template<uint32_t Size>
+X86_FORCEINLINE void X86_FRAME_ENTER(uint8_t* frame, uint32_t address, uint8_t* base)
+{
+    static_assert(Size % 4 == 0, "frame size is whole words");
+    x86_frame_enter(frame, address, base, std::make_integer_sequence<uint32_t, Size / 4>());
+}
+
+#define X86_FRAME_LOAD(T, offset) x86_frame_load<T>(frame + (offset))
+#define X86_FRAME_STORE(T, offset, value) x86_frame_store<T>(frame + (offset), static_cast<T>(value))
+
+X86_FORCEINLINE void X86_FRAME_PUSH(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset, uint32_t value)
+{
+    x86_frame_store<uint32_t>(frame + offset, value);
+    ctx.esp.u32 -= 4;
+}
+
+X86_FORCEINLINE uint32_t X86_FRAME_POP(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset)
+{
+    ctx.esp.u32 += 4;
+    return x86_frame_load<uint32_t>(frame + offset);
 }
 
 // CONDITION CODE HELPER

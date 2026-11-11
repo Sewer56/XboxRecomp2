@@ -37,6 +37,7 @@ mod locals;
 mod merged_cmp_jmp;
 mod midasm_hook;
 mod nonvolatile;
+mod stack_locals;
 mod x87;
 
 /// Writes `model` as the C++ function `name`, appending to `out`.
@@ -116,6 +117,9 @@ fn write_body(
     if model.local_mmx {
         scratch.text.push_str("\tuint64_t mmx[8];\n");
     }
+    if let Some(locals) = &model.stack_locals {
+        stack_locals::write_prologue(locals, &mut scratch.text);
+    }
     write_entry(
         model.entry,
         context.base,
@@ -137,6 +141,66 @@ fn write_body(
     }
 
     scratch.text.clear();
+}
+
+/// Writes the C declaration for one variable.
+///
+/// # Examples
+///
+/// For `Local::Uint32(2)`, this appends:
+///
+/// ```text
+/// uint32_t val_uint32_2 = 0;
+/// ```
+fn write_local(local: Local, text: &mut String) {
+    let (template, index) = match local {
+        Local::Double(index) => (TEMP_DOUBLE, index),
+        Local::Uint32(index) => (TEMP_UINT32, index),
+        Local::Uint64(index) => (TEMP_UINT64, index),
+    };
+    render_into(template, &[("index", &index.to_string())], text);
+}
+
+/// Writes a jump to the entry, if needed.
+///
+/// # Examples
+///
+/// For `Entry::Goto(0x401010)`, this appends:
+///
+/// ```text
+/// goto loc_401010;
+/// ```
+///
+/// # Note
+///
+/// I (Sewer) looked under disassembler. No penalty for starting with goto,
+/// Clang optimises it out.
+fn write_entry(
+    entry: Entry,
+    base: GuestAddress32,
+    debug: bool,
+    state: &mut RunState<'_>,
+    text: &mut String,
+) {
+    match entry {
+        Entry::First => {}
+        Entry::Goto(target) => {
+            let _ = writeln!(text, "\tgoto loc_{target:X};");
+        }
+        Entry::Missing(entry) => {
+            let _ = writeln!(
+                state.diag,
+                "ERROR: Function at 0x{base:X} has no selected instruction at its entry 0x{entry:X}"
+            );
+            if debug {
+                let _ = write!(
+                    text,
+                    "\tfprintf(stderr, \"Function entry 0x{entry:X} was not selected into the body\\n\");\n\tfflush(stderr);\n"
+                );
+            }
+            text.push_str("\tstd::abort();\n");
+        }
+    }
 }
 
 /// Writes one block: its label, its operations, then its exit.
@@ -259,87 +323,6 @@ fn write_block(
     out.extend_from_slice(scratch.text.as_bytes());
 }
 
-/// Writes a jump to the entry, if needed.
-///
-/// # Examples
-///
-/// For `Entry::Goto(0x401010)`, this appends:
-///
-/// ```text
-/// goto loc_401010;
-/// ```
-///
-/// # Note
-///
-/// I (Sewer) looked under disassembler. No penalty for starting with goto,
-/// Clang optimises it out.
-fn write_entry(
-    entry: Entry,
-    base: GuestAddress32,
-    debug: bool,
-    state: &mut RunState<'_>,
-    text: &mut String,
-) {
-    match entry {
-        Entry::First => {}
-        Entry::Goto(target) => {
-            let _ = writeln!(text, "\tgoto loc_{target:X};");
-        }
-        Entry::Missing(entry) => {
-            let _ = writeln!(
-                state.diag,
-                "ERROR: Function at 0x{base:X} has no selected instruction at its entry 0x{entry:X}"
-            );
-            if debug {
-                let _ = write!(
-                    text,
-                    "\tfprintf(stderr, \"Function entry 0x{entry:X} was not selected into the body\\n\");\n\tfflush(stderr);\n"
-                );
-            }
-            text.push_str("\tstd::abort();\n");
-        }
-    }
-}
-
-/// Writes the C declaration for one variable.
-///
-/// # Examples
-///
-/// For `Local::Uint32(2)`, this appends:
-///
-/// ```text
-/// uint32_t val_uint32_2 = 0;
-/// ```
-fn write_local(local: Local, text: &mut String) {
-    let (template, index) = match local {
-        Local::Double(index) => (TEMP_DOUBLE, index),
-        Local::Uint32(index) => (TEMP_UINT32, index),
-        Local::Uint64(index) => (TEMP_UINT64, index),
-    };
-    render_into(template, &[("index", &index.to_string())], text);
-}
-
-/// Ends a block with `std::abort()` when it has no safe place to go next.
-fn write_abort(
-    message: &str,
-    address: GuestAddress32,
-    debug: bool,
-    state: &mut RunState<'_>,
-    text: &mut String,
-) {
-    if debug {
-        let _ = write!(
-            text,
-            "\tfprintf(stderr, \"{message} at 0x{address:X}\\n\");\n\tfflush(stderr);\n"
-        );
-    }
-    text.push_str("\tstd::abort();\n");
-    let _ = writeln!(
-        state.diag,
-        "Terminal barrier after instruction at 0x{address:X}: {message}"
-    );
-}
-
 /// Writes the C++ for one guest instruction.
 ///
 /// For `mov eax, ecx` with a hook named `test_hook`, you get:
@@ -420,7 +403,7 @@ fn write_instruction(
         write_missing(context, guest, scratch, out);
         report_failure(state, context.base, guest, false);
     } else {
-        write_code(context, guest, scratch.code.as_str(), out);
+        write_code(context, guest, scratch, out);
     }
 
     if guest.last_in_function {
@@ -436,71 +419,25 @@ fn write_instruction(
     }
 }
 
-/// Borrows the common emission context for one guest instruction.
-fn guest_emitter<'a>(
-    context: &'a GenerationContext<'_>,
-    guest: &'a GuestOp,
-    function_state: &'a mut FunctionState,
-    out: &'a mut CodeWriter,
-) -> Emitter<'a> {
-    Emitter {
-        out,
-        base: guest.address,
-        insn: &guest.insn,
-        needed_eflags: guest.needed_flags,
-        direction: guest.direction,
-        needed_status: guest.needed_status,
-        symbols: &context.executable.symbols,
-        imports: &context.executable.imports,
-        config: context.config,
-        platform: context.platform,
-        function_state,
-        switch_table: guest.switch_table.as_ref(),
-        form_missing: false,
-    }
-}
-
-/// Copies `code`, written for `guest`, applying in-C++ rewrites if required.
-fn write_code(context: &GenerationContext<'_>, guest: &GuestOp, code: &str, out: &mut Vec<u8>) {
-    let hacks = &context.config.speed_hacks;
-    if hacks.runs_nonvolatile_memory() || hacks.runs_nonvolatile_stack() {
-        nonvolatile::rewrite(code, guest.nonvolatile, hacks.runs_nonvolatile_stack(), out);
-    } else {
-        out.extend_from_slice(code.as_bytes());
-    }
-}
-
-/// Wraps up after the function's last instruction.
-fn write_guest_func_end(
-    context: &GenerationContext<'_>,
-    guest: &GuestOp,
-    block_aborts: bool,
-    function_state: &mut FunctionState,
-    scratch: &mut FunctionScratch,
+/// Ends a block with `std::abort()` when it has no safe place to go next.
+fn write_abort(
+    message: &str,
+    address: GuestAddress32,
+    debug: bool,
     state: &mut RunState<'_>,
-    out: &mut Vec<u8>,
+    text: &mut String,
 ) {
-    // Reset for next function.
-    function_state.has_register_import = false;
-
-    // Warn if the function just stops, since analysis likely cut it short.
-    let leaves = matches!(
-        guest.insn.mnemonic(),
-        Mnemonic::JMP | Mnemonic::RET | Mnemonic::INT3
-    );
-    if !block_aborts && !leaves {
-        scratch.text.clear();
-        if context.config.debug {
-            render_into(
-                LAST_INST_WARNING_PRINTF,
-                &[("address", &format!("{:x}", guest.address))],
-                &mut scratch.text,
-            );
-        }
-        render_into(LAST_INST_WARNING_COMMENT, &[], &mut scratch.text);
-        out.extend_from_slice(scratch.text.as_bytes());
-        report_failure(state, context.base, guest, true);
+    if debug {
+        let _ = write!(
+            text,
+            "\tfprintf(stderr, \"{message} at 0x{address:X}\\n\");\n\tfflush(stderr);\n"
+        );
     }
+    text.push_str("\tstd::abort();\n");
+    let _ = writeln!(
+        state.diag,
+        "Terminal barrier after instruction at 0x{address:X}: {message}"
+    );
 }
 
 /// Writes what goes before an instruction's C++.
@@ -579,12 +516,88 @@ fn write_missing(
     out.extend_from_slice(scratch.text.as_bytes());
 }
 
-fn disasm_text(buffer: &[u8]) -> &str {
-    let end = buffer
-        .iter()
-        .position(|&byte| byte == 0)
-        .unwrap_or(buffer.len());
-    from_utf8(&buffer[..end]).unwrap_or("")
+/// Borrows the common emission context for one guest instruction.
+fn guest_emitter<'a>(
+    context: &'a GenerationContext<'_>,
+    guest: &'a GuestOp,
+    function_state: &'a mut FunctionState,
+    out: &'a mut CodeWriter,
+) -> Emitter<'a> {
+    Emitter {
+        out,
+        base: guest.address,
+        insn: &guest.insn,
+        needed_eflags: guest.needed_flags,
+        direction: guest.direction,
+        needed_status: guest.needed_status,
+        symbols: &context.executable.symbols,
+        imports: &context.executable.imports,
+        config: context.config,
+        platform: context.platform,
+        function_state,
+        switch_table: guest.switch_table.as_ref(),
+        form_missing: false,
+    }
+}
+
+/// Copies the C++ in `scratch.code`, written for `guest`, to `out`.
+fn write_code(
+    context: &GenerationContext<'_>,
+    guest: &GuestOp,
+    scratch: &mut FunctionScratch,
+    out: &mut Vec<u8>,
+) {
+    let hacks = &context.config.speed_hacks;
+    let mut code = scratch.code.as_str();
+
+    // Point stack slots at `frame`.
+    // Make sure this is first, don't rearrange!
+    let stack_locals = context.stack_locals;
+    if let Some(access) = stack_locals.and_then(|locals| locals.instructions.get(&guest.address)) {
+        let native = hacks.runs_native_sized_addresses();
+        stack_locals::rewrite(access, &guest.insn, native, code, &mut scratch.frame_code);
+        code = scratch.frame_code.as_str();
+    }
+
+    // Drop `volatile` where we can.
+    if hacks.runs_nonvolatile_memory() || hacks.runs_nonvolatile_stack() {
+        nonvolatile::rewrite(code, guest.nonvolatile, hacks.runs_nonvolatile_stack(), out);
+    } else {
+        out.extend_from_slice(code.as_bytes());
+    }
+}
+
+/// Wraps up after the function's last instruction.
+fn write_guest_func_end(
+    context: &GenerationContext<'_>,
+    guest: &GuestOp,
+    block_aborts: bool,
+    function_state: &mut FunctionState,
+    scratch: &mut FunctionScratch,
+    state: &mut RunState<'_>,
+    out: &mut Vec<u8>,
+) {
+    // Reset for next function.
+    function_state.has_register_import = false;
+
+    // Warn if the function just stops, since analysis likely cut it short.
+    let leaves = matches!(
+        guest.insn.mnemonic(),
+        Mnemonic::JMP | Mnemonic::RET | Mnemonic::INT3
+    );
+    if !block_aborts && !leaves {
+        scratch.text.clear();
+        if context.config.debug {
+            render_into(
+                LAST_INST_WARNING_PRINTF,
+                &[("address", &format!("{:x}", guest.address))],
+                &mut scratch.text,
+            );
+        }
+        render_into(LAST_INST_WARNING_COMMENT, &[], &mut scratch.text);
+        out.extend_from_slice(scratch.text.as_bytes());
+        report_failure(state, context.base, guest, true);
+    }
 }
 
 /// Notes a bad instruction for end report.
@@ -614,6 +627,14 @@ fn report_failure(
     if state.inst_missing_index.insert(mnemonic.clone()) {
         state.inst_missing.push(mnemonic);
     }
+}
+
+fn disasm_text(buffer: &[u8]) -> &str {
+    let end = buffer
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(buffer.len());
+    from_utf8(&buffer[..end]).unwrap_or("")
 }
 
 #[cfg(test)]
@@ -664,6 +685,7 @@ mod tests {
             platform: &PlainPlatform,
             base: 0x1000.into(),
             x87: &X87Plan::default(),
+            stack_locals: None,
         };
         let (mut missing, mut missing_index) = (Vec::new(), HashSet::default());
         let (mut wrong, mut wrong_index) = (Vec::new(), HashSet::default());

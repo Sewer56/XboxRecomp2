@@ -78,7 +78,7 @@ pub(super) fn decode_memory_operand_no_parentheses(mem: &MemoryInfo) -> String {
 /// ea([0x12345], _)         ->  "0x12345"
 /// ea(eax, _)               ->  ""
 /// ```
-pub(super) fn ea(operand: &DecodedOperand, native: bool) -> String {
+pub(in crate::codegen::function::write) fn ea(operand: &DecodedOperand, native: bool) -> String {
     memory(operand).map_or_else(String::new, |mem| address_expression(mem, true, native))
 }
 
@@ -124,6 +124,38 @@ pub(super) fn format_operand(operand: &DecodedOperand, size_suffix: &str, native
     String::new()
 }
 
+/// Reads `operand` as a register, even when it isn't one.
+///
+/// # Panics
+///
+/// Panics for pointer operands.
+#[inline]
+pub(super) fn operand_reg_value(operand: &DecodedOperand) -> Register {
+    match &operand.kind {
+        DecodedOperandKind::Reg(reg) => *reg,
+        DecodedOperandKind::Mem(mem) => match mem.ty {
+            MemoryOperandType::INVALID => Register::NONE,
+            MemoryOperandType::MEM => Register::AL,
+            MemoryOperandType::AGEN => Register::CL,
+            MemoryOperandType::MIB => Register::DL,
+            MemoryOperandType::VSIB => Register::BL,
+        },
+        DecodedOperandKind::Imm(imm) => {
+            // The register overlays is_signed | (is_relative << 8).
+            match (imm.is_signed, imm.is_relative) {
+                (false, false) => Register::NONE,
+                (true, false) => Register::AL,
+                (false, true) => Register::BND0,
+                (true, true) => Register::BND1,
+            }
+        }
+        DecodedOperandKind::Ptr(_) => {
+            panic!("reg.value read on a pointer operand")
+        }
+        DecodedOperandKind::Unused => Register::NONE,
+    }
+}
+
 /// Returns an immediate as unsigned hex, cut to `bits`.
 ///
 /// # Examples
@@ -167,38 +199,6 @@ pub(super) fn segment_equals(operand: &DecodedOperand, segment: Register) -> boo
     match &operand.kind {
         DecodedOperandKind::Mem(mem) => mem.segment == segment,
         _ => false,
-    }
-}
-
-/// Reads `operand` as a register, even when it isn't one.
-///
-/// # Panics
-///
-/// Panics for pointer operands.
-#[inline]
-pub(super) fn operand_reg_value(operand: &DecodedOperand) -> Register {
-    match &operand.kind {
-        DecodedOperandKind::Reg(reg) => *reg,
-        DecodedOperandKind::Mem(mem) => match mem.ty {
-            MemoryOperandType::INVALID => Register::NONE,
-            MemoryOperandType::MEM => Register::AL,
-            MemoryOperandType::AGEN => Register::CL,
-            MemoryOperandType::MIB => Register::DL,
-            MemoryOperandType::VSIB => Register::BL,
-        },
-        DecodedOperandKind::Imm(imm) => {
-            // The register overlays is_signed | (is_relative << 8).
-            match (imm.is_signed, imm.is_relative) {
-                (false, false) => Register::NONE,
-                (true, false) => Register::AL,
-                (false, true) => Register::BND0,
-                (true, true) => Register::BND1,
-            }
-        }
-        DecodedOperandKind::Ptr(_) => {
-            panic!("reg.value read on a pointer operand")
-        }
-        DecodedOperandKind::Unused => Register::NONE,
     }
 }
 

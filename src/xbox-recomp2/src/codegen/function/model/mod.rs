@@ -40,11 +40,13 @@ pub(crate) use hook::Hook;
 pub(crate) use intrinsics::{
     Call, CdqIdiv, Condition, MergedCmpJmp, MergedInstruction, MergedInstructionKind, Return,
 };
+pub(crate) use stack_locals::{FrameAccess, StackLocals};
 pub(crate) use x87::{HookSync, X87Level, X87Plan, X87Sync};
 use xbox_recomp2_executable::GuestAddress32;
 
 mod hook;
 mod intrinsics;
+mod stack_locals;
 mod x87;
 
 /// Flags stored in `X86EFlags::common`.
@@ -102,6 +104,11 @@ pub(crate) struct FunctionModel {
     ///
     /// Set by the `optimize_mmx` pass.
     pub local_mmx: bool,
+
+    /// Stack slots kept in a local `frame` array, if any.
+    ///
+    /// Set by the `stack_slots_in_locals` speed hack.
+    pub stack_locals: Option<StackLocals>,
 }
 
 /// A scratch variable declared at the top of the function.

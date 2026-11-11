@@ -13,10 +13,10 @@ pub(super) use instructions::{emit_call, emit_cdq_idiv, emit_return, lookup, mer
 pub(in crate::codegen) use instructions::{has_emitter, supports_addressing};
 use operands::{array_subscript, constant};
 use operands::{
-    decode_memory_operand_no_parentheses, ea, get_x86_reg_float, is_mm0_to_7, is_xmm0_to_7,
-    mmx_index, operand_reg_value, operand_type_name, segment_equals, st_index,
+    decode_memory_operand_no_parentheses, get_x86_reg_float, is_mm0_to_7, is_xmm0_to_7, mmx_index,
+    operand_reg_value, operand_type_name, segment_equals, st_index,
 };
-pub(in crate::codegen::function::write) use operands::{get_x86_reg, xmm_index};
+pub(in crate::codegen::function::write) use operands::{ea, get_x86_reg, xmm_index};
 pub(in crate::codegen::function) use writer::CodeWriter;
 use writer::cpp;
 
