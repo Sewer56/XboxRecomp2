@@ -269,6 +269,9 @@ pub(crate) struct GuestOp {
     /// x87 condition codes observable after this instruction.
     /// (Same like needed_flags, but for x87 condition codes.)
     pub needed_status: ConditionCodes,
+
+    /// Whether this instruction's memory operand skips `volatile`.
+    pub nonvolatile: bool,
 }
 
 /// Which way string instructions like `rep movsd` walk memory.

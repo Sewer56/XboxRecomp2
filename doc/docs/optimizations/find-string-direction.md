@@ -72,10 +72,10 @@ Clang 21.1.8, x86-64, `-O2 -march=sandybridge`.
 
     ```asm
     ; Clang unrolls both loops, then picks each address with a cmov.
-    testl   $0x400, %r9d
-    leaq    0x541f0c(%rsi), %rax
-    leaq    0x541e44(%rsi), %rcx
-    cmoveq  %rax, %rcx
+    test  r9d, 0x400
+    lea   rax, [rsi+0x541f0c]
+    lea   rcx, [rsi+0x541e44]
+    cmove rcx, rax
     ; ... 22 more cmovs, then the stores
     ```
 
@@ -83,9 +83,9 @@ Clang 21.1.8, x86-64, `-O2 -march=sandybridge`.
 
     ```asm
     ; Just the stores, 4 bytes each.
-    movl    $0xffffffff, 0x541ea8(%rsi)
-    movl    $0xffffffff, 0x541eac(%rsi)
-    movl    $0xffffffff, 0x541eb0(%rsi)
+    mov   dword ptr [rsi+0x541ea8], 0xffffffff
+    mov   dword ptr [rsi+0x541eac], 0xffffffff
+    mov   dword ptr [rsi+0x541eb0], 0xffffffff
     ; ...
     ```
 

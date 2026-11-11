@@ -190,6 +190,11 @@ nonvolatile_stack = true
 #              So like CMOV, a guest crash is avoided when it should happen.
 plain_sse_memory = true
 
+# Let the compiler merge/drop guest loads and stores outside the stack.
+# Side effect: Unsafe if a host thread writes memory that the guest code
+#              reads without/lock or wait loop. (Concurrency)
+nonvolatile_memory = true
+
 # CMOV only reads memory when it actually moves.
 # Side effect: Invalid addresses are skipped.
 #              Stops game from crashing where real HW might have crashed.

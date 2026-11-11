@@ -2,12 +2,11 @@
 //!
 //! See "How it works" in `needed-flags.md`.
 
-use super::predecessors::Predecessors;
 use crate::codegen::function::model::{ALL_ARITHMETIC_FLAGS, FunctionModel, Op};
 use crate::codegen::optimizations::helpers::flag_summary::FlagSummary;
 use crate::codegen::optimizations::helpers::instruction::effects::eflags::EFlagEffects;
 use crate::codegen::optimizations::helpers::known_callers::direct_call_target;
-use crate::codegen::optimizations::helpers::op_graph::{Edge, OpGraph, OpIndex};
+use crate::codegen::optimizations::helpers::op_graph::{Edge, OpGraph, OpIndex, Predecessors};
 use crate::codegen::optimizations::helpers::workqueue::WorkQueue;
 use crate::decode::CpuFlag;
 use xbox_recomp2_executable::GuestAddress32;

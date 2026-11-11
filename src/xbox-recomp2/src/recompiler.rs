@@ -265,8 +265,12 @@ impl<'a> Recompiler<'a> {
             executable: parse_executable_with(formats, input),
             platform,
             context_header: {
-                let mut header =
-                    format!("#define X86_RECOMP_DEBUG {}\n", u8::from(config.debug)).into_bytes();
+                let mut header = format!(
+                    "#define X86_RECOMP_DEBUG {}\n#define X86_NONVOLATILE_MEMORY {}\n",
+                    u8::from(config.debug),
+                    u8::from(config.speed_hacks.runs_nonvolatile_memory()),
+                )
+                .into_bytes();
                 header.extend_from_slice(&assemble_context_header(&platform.context_overlay()));
                 header
             },

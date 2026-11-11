@@ -13,7 +13,6 @@ use crate::utils::flat_lists::{FlatLists, FlatListsBuilder};
 use graph::{FlagGraph, Solution, leaving};
 
 pub(in crate::codegen) mod graph;
-mod predecessors;
 
 /// The flags needed around each operation of one function.
 pub(in crate::codegen::optimizations) struct NeededFlags {

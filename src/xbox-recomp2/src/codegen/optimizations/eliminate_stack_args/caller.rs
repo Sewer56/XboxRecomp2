@@ -131,6 +131,7 @@ fn rewrite(ops: &mut Vec<Op>, call: usize, function: &Called, setup: &CallSetup)
             needed_flags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
             needed_status: ConditionCodes::all(),
+            nonvolatile: false,
         })
     });
     ops.splice(call..call, moves);

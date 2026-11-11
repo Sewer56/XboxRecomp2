@@ -36,6 +36,7 @@ The helpers I made answer those, so each optimization doesn't have to.
 | [Flag Effects]    | Which EFLAGS does one instruction read and write?        |
 | [Flag Boundaries] | Which EFLAGS cross each call and `ret`?                  |
 | [Needed Flags]    | Which EFLAGS must be valid after each operation?         |
+| [Loops]           | Which loops does a function have?                        |
 
 ## Remarks
 
@@ -54,3 +55,4 @@ change the code from a pass; you gotta recompute.
 [Flag Effects]: flag-effects.md
 [Flag Boundaries]: flag-boundaries.md
 [Needed Flags]: needed-flags.md
+[Loops]: loops.md
