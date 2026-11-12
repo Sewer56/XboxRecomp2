@@ -20,6 +20,8 @@ use optional::Optioned;
 /// Size of one stack slot, in bytes.
 pub(in crate::codegen) const STACK_WORD_BYTES: u32 = 4;
 
+const STACK_WORD16_BYTES: u32 = 2;
+
 /// What a stack instruction did, as reported by [`StackFrame::step`].
 ///
 /// - `Unchanged`: ESP didn't move, though EBP may have become unknown.
@@ -130,8 +132,8 @@ impl StackFrame {
                         || immediate(&ops[0]).is_some()
                         || memory(&ops[0]).is_some()) =>
             {
-                next.esp = next.esp.checked_sub(2)?;
-                FrameStep::PushOther(2)
+                next.esp = next.esp.checked_sub_unsigned(STACK_WORD16_BYTES)?;
+                FrameStep::PushOther(STACK_WORD16_BYTES)
             }
             Mnemonic::POP
                 if memory(&ops[0])
@@ -152,11 +154,7 @@ impl StackFrame {
                 FrameStep::Unchanged
             }
             Mnemonic::MOV if dst == Some(Register::EBP) && src == Some(Register::ESP) => {
-                // `i32::MIN` would read back as unknown.
-                if next.esp == i32::MIN {
-                    return None;
-                }
-                next.ebp = Optioned::some(next.esp);
+                next.set_ebp(next.esp)?;
                 FrameStep::SetBase
             }
             Mnemonic::MOV if dst == Some(Register::ESP) && src == Some(Register::EBP) => {
@@ -169,9 +167,12 @@ impl StackFrame {
                 FrameStep::Restore
             }
             Mnemonic::LEAVE if insn.instruction().operand_width == 16 => {
-                next.esp = next.ebp.into_option()?.checked_add(2)?;
+                next.esp = next
+                    .ebp
+                    .into_option()?
+                    .checked_add_unsigned(STACK_WORD16_BYTES)?;
                 next.ebp = Optioned::none();
-                FrameStep::PopOther(2)
+                FrameStep::PopOther(STACK_WORD16_BYTES)
             }
             Mnemonic::LEA
                 if is_32bit
@@ -228,6 +229,7 @@ impl StackFrame {
     }
 
     fn set_ebp(&mut self, offset: i32) -> Option<()> {
+        // `i32::MIN` would read back as unknown.
         if offset == i32::MIN {
             return None;
         }
@@ -323,13 +325,10 @@ fn constant_adjustment(insn: &Insn) -> Option<i32> {
     match insn.mnemonic() {
         Mnemonic::INC => Some(1),
         Mnemonic::DEC => Some(-1),
-        Mnemonic::ADD | Mnemonic::SUB => {
-            let value = i32::try_from(immediate_signed(&insn.operands()[1])?).ok()?;
-            match insn.mnemonic() {
-                Mnemonic::ADD => Some(value),
-                _ => value.checked_neg(),
-            }
-        }
+        Mnemonic::ADD => i32::try_from(immediate_signed(&insn.operands()[1])?).ok(),
+        Mnemonic::SUB => i32::try_from(immediate_signed(&insn.operands()[1])?)
+            .ok()?
+            .checked_neg(),
         _ => None,
     }
 }
@@ -358,8 +357,8 @@ mod tests {
     #[case::partial_esp(&[0x66, 0x89, 0xC4], None)] // mov sp, ax
     #[case::dynamic(&[0x29, 0xC4], None)] // sub esp, eax
     #[case::pop_esp(&[0x5C], None)] // pop esp
-    #[case::stack_address_from_esp(&[0x8D, 0x6C, 0x24, 4], Some((0, Some(4))))] // lea ebp, [esp+4]
-    #[case::stack_address_from_ebp(&[0x45], Some((0, Some(-7))))] // inc ebp
+    #[case::lea_base(&[0x8D, 0x6C, 0x24, 4], Some((0, Some(4))))] // lea ebp, [esp+4]
+    #[case::increment_base(&[0x45], Some((0, Some(-7))))] // inc ebp
     #[case::push_flags(&[0x9C], Some((-4, Some(-8))))] // pushfd
     #[case::push_word(&[0x66, 0x50], Some((-2, Some(-8))))] // push ax
     #[case::pop_memory(&[0x8F, 0x04, 0x24], Some((4, Some(-8))))] // pop [esp]

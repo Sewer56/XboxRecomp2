@@ -41,6 +41,7 @@
 #endif
 
 #include <climits>
+#include <cfloat>
 #include <cmath>
 #include <csetjmp>
 #include <cstdint>
@@ -162,7 +163,13 @@ using x87_float = long double;
 
 #define X86_LOAD_F32(addr) (*reinterpret_cast<volatile float*>(base + (addr)))
 #define X86_LOAD_F64(addr) (*reinterpret_cast<volatile double*>(base + (addr)))
-#if defined(X86_HOST_X86)
+
+// Some x86 hosts, including Windows clang, use an eight-byte long double.
+#if defined(X86_HOST_X86) && LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384
+#define X86_NATIVE_F80 1
+#endif
+
+#if defined(X86_NATIVE_F80)
 #define X86_LOAD_F80(addr) (*reinterpret_cast<volatile long double*>(base + (addr)))
 #else
 #define X86_LOAD_F80(addr) x86_load_f80(base + (addr))
@@ -177,7 +184,7 @@ using x87_float = long double;
 //Floating point variants
 #define X86_STORE_F32(addr, value) (*reinterpret_cast<volatile float*>(base + (addr)) = static_cast<float>(value))
 #define X86_STORE_F64(addr, value) (*reinterpret_cast<volatile double*>(base + (addr)) = static_cast<double>(value))
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
 #define X86_STORE_F80(addr, value) (*reinterpret_cast<volatile long double*>(base + (addr)) = static_cast<long double>(value))
 #else
 #define X86_STORE_F80(addr, value) x86_store_f80(base + (addr), static_cast<double>(value))
@@ -264,7 +271,7 @@ struct x86_slot<T, false> { typedef T __attribute__((may_alias, aligned(1))) typ
 #define X86_NONVOLATILE_STORE_F32(addr, value) X86_STORE_AS(float, false, addr, static_cast<float>(value))
 #define X86_NONVOLATILE_STORE_F64(addr, value) X86_STORE_AS(double, false, addr, static_cast<double>(value))
 
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
 #define X86_NONVOLATILE_LOAD_F80(addr) X86_LOAD_AS(long double, false, addr)
 #define X86_NONVOLATILE_STORE_F80(addr, value) X86_STORE_AS(long double, false, addr, static_cast<long double>(value))
 #else
@@ -2103,7 +2110,7 @@ X86_FORCEINLINE void X86_FRAME_ENTER(uint8_t* frame, uint32_t address, uint8_t* 
 
 X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot)
 {
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
     // Guest m80 is ten bytes, even when sizeof(long double) is sixteen.
     long double value = 0;
     memcpy(&value, slot, 10);
@@ -2115,7 +2122,7 @@ X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot)
 
 X86_FORCEINLINE void x86_frame_store_f80(uint8_t* slot, x87_float value)
 {
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
     const long double extended = static_cast<long double>(value);
     memcpy(slot, &extended, 10);
 #else

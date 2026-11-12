@@ -241,7 +241,7 @@ fn replace_text(text: &mut String, from: &str, to: &str) -> usize {
 
 /// Whether a macro still takes `address` as its first argument.
 fn names_guest_address(text: &str, address: &str) -> bool {
-    text.contains(&format!("({address})")) || text.contains(&format!("({address},"))
+    text.contains(&format!("({address}"))
 }
 
 #[cfg(test)]
