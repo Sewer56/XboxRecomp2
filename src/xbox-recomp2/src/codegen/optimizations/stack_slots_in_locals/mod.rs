@@ -18,8 +18,8 @@ use super::helpers::stack_frame::{
 };
 use crate::codegen::function::model::{FunctionModel, Op, StackLocals};
 use crate::decode::{
-    DecodedOperand, Insn, InstructionAttributes, MemoryInfo, Mnemonic, OperandAction,
-    OperandVisibility, Register, memory, register,
+    DecodedOperand, Insn, MemoryInfo, Mnemonic, OperandAction, OperandVisibility, Register, memory,
+    register,
 };
 use slot_use::SlotUse;
 use slots::{OperandIndex, Slots};
@@ -56,7 +56,21 @@ fn make_plan_for_model(model: &FunctionModel) -> Option<StackLocals> {
     // Collect each instruction's stack slots.
     let mut used = Vec::new();
     let mut lowest: EspOffset = 0;
-    for item in stack.reachable() {
+    for (index, item) in stack.instructions.iter().enumerate() {
+        let frame = match item.frame {
+            Some(frame) => frame,
+            None => continue,
+        };
+
+        // Refuse jumps to other functions while EBP points at our locals:
+        //   sub esp, 8
+        //   mov ebp, esp   ; EBP -> our locals, which now live in `frame`
+        //   add esp, 8
+        //   jmp other      ; `other` reads [ebp] from guest memory: stale
+        if stack.leaves_function(index) && frame.ebp.into_option().is_some_and(|ebp| ebp < 0) {
+            return None;
+        }
+
         let slots = stack_slots_used_by(item)?;
         if slots.is_empty() {
             continue;
@@ -131,7 +145,13 @@ fn stack_slots_used_by(item: &StackInstruction<'_>) -> Option<Slots> {
 
         match operand_slot(insn, operand, operand_frame) {
             SlotUse::Outside => {}
-            SlotUse::Local(offset) => slots.operands.push((index as OperandIndex, offset)),
+            SlotUse::Local(offset) => {
+                if insn.mnemonic() == Mnemonic::JMP && item.instruction.switch_table.is_some() {
+                    return None;
+                }
+
+                slots.operands.push((index as OperandIndex, offset));
+            }
             SlotUse::Unsupported => return None,
         }
     }
@@ -281,6 +301,14 @@ fn copies_esp_or_ebp(insn: &Insn) -> bool {
 /// Whether the operand is emitted as `X86_LOAD_*`, `X86_STORE_*` or a `_MEM` helper.
 /// i.e. Code we can rewrite.
 fn can_rewrite_operand(insn: &Insn, bits: u16, action: OperandAction) -> bool {
+    if insn.mnemonic() == Mnemonic::JMP {
+        return bits == 32;
+    }
+
+    if matches!(insn.mnemonic(), Mnemonic::FNSAVE | Mnemonic::FRSTOR) {
+        return matches!(bits, 752 | 864);
+    }
+
     if insn.mnemonic() == Mnemonic::SGDT && bits == 48 {
         return true;
     }
@@ -306,36 +334,31 @@ fn can_rewrite_operand(insn: &Insn, bits: u16, action: OperandAction) -> bool {
 ///
 /// e.g. `and [esp+4], 0xFF` becomes `X86_AND32_MEM(ctx.esp.u32 + 4, 0xff, ctx, base)`.
 fn modifies_with_helper(insn: &Insn) -> bool {
-    match insn.mnemonic() {
-        // `lock xadd` is atomic, with its own helper.
-        Mnemonic::XADD => !insn
-            .instruction()
-            .attributes
-            .contains(InstructionAttributes::HAS_LOCK),
-
-        mnemonic => matches!(
-            mnemonic,
-            Mnemonic::ADD
-                | Mnemonic::ADC
-                | Mnemonic::SUB
-                | Mnemonic::SBB
-                | Mnemonic::AND
-                | Mnemonic::OR
-                | Mnemonic::XOR
-                | Mnemonic::INC
-                | Mnemonic::DEC
-                | Mnemonic::NEG
-                | Mnemonic::NOT
-                | Mnemonic::SHL
-                | Mnemonic::SHR
-                | Mnemonic::SAR
-                | Mnemonic::ROL
-                | Mnemonic::ROR
-                | Mnemonic::RCR
-                | Mnemonic::SHLD
-                | Mnemonic::SHRD
-        ),
-    }
+    matches!(
+        insn.mnemonic(),
+        Mnemonic::XADD
+            | Mnemonic::XCHG
+            | Mnemonic::CMPXCHG
+            | Mnemonic::ADD
+            | Mnemonic::ADC
+            | Mnemonic::SUB
+            | Mnemonic::SBB
+            | Mnemonic::AND
+            | Mnemonic::OR
+            | Mnemonic::XOR
+            | Mnemonic::INC
+            | Mnemonic::DEC
+            | Mnemonic::NEG
+            | Mnemonic::NOT
+            | Mnemonic::SHL
+            | Mnemonic::SHR
+            | Mnemonic::SAR
+            | Mnemonic::ROL
+            | Mnemonic::ROR
+            | Mnemonic::RCR
+            | Mnemonic::SHLD
+            | Mnemonic::SHRD
+    )
 }
 
 /// Whether the emitter writes this store as `X86_STORE_*`.
@@ -389,21 +412,100 @@ fn stores_with_macro(mnemonic: Mnemonic) -> bool {
 /// - `mov eax, [esp+4]`: yes, `X86_LOAD_U32(ctx.esp.u32 + 4)`.
 /// - `paddw xmm0, [esp]`: yes, `base + (ctx.esp.u32)` becomes `frame + 0x10`.
 /// - `cvttss2si eax, [esp]`: yes, `X86_CVTSS2SI_MEM` is a `_MEM` helper.
-/// - `frstor [esp]`: no, has its own helper.
-///
-/// Most do, so we list the ones that don't.
 fn loads_with_macro(mnemonic: Mnemonic) -> bool {
-    !matches!(
+    matches!(
         mnemonic,
-        Mnemonic::MOVNTPS
-            | Mnemonic::MOVNTQ
-            | Mnemonic::XCHG
-            | Mnemonic::CMPXCHG
-            | Mnemonic::XADD
-            | Mnemonic::FNSAVE
-            | Mnemonic::FRSTOR
-            | Mnemonic::CALL
+        Mnemonic::MOV
+            | Mnemonic::MOVSX
+            | Mnemonic::MOVZX
+            | Mnemonic::PUSH
             | Mnemonic::JMP
+            | Mnemonic::ADD
+            | Mnemonic::ADC
+            | Mnemonic::SUB
+            | Mnemonic::SBB
+            | Mnemonic::CMP
+            | Mnemonic::AND
+            | Mnemonic::OR
+            | Mnemonic::XOR
+            | Mnemonic::TEST
+            | Mnemonic::BSF
+            | Mnemonic::MUL
+            | Mnemonic::IMUL
+            | Mnemonic::DIV
+            | Mnemonic::IDIV
+            | Mnemonic::CMOVB
+            | Mnemonic::CMOVBE
+            | Mnemonic::CMOVL
+            | Mnemonic::CMOVLE
+            | Mnemonic::CMOVNB
+            | Mnemonic::CMOVNBE
+            | Mnemonic::CMOVNL
+            | Mnemonic::CMOVNLE
+            | Mnemonic::CMOVNO
+            | Mnemonic::CMOVNP
+            | Mnemonic::CMOVNS
+            | Mnemonic::CMOVNZ
+            | Mnemonic::CMOVO
+            | Mnemonic::CMOVP
+            | Mnemonic::CMOVS
+            | Mnemonic::CMOVZ
+            | Mnemonic::MOVSS
+            | Mnemonic::MOVAPS
+            | Mnemonic::MOVUPS
+            | Mnemonic::MOVLPS
+            | Mnemonic::MOVHPS
+            | Mnemonic::MOVD
+            | Mnemonic::MOVQ
+            | Mnemonic::LDMXCSR
+            | Mnemonic::ADDPS
+            | Mnemonic::ADDSS
+            | Mnemonic::ANDPS
+            | Mnemonic::CMPSS
+            | Mnemonic::COMISS
+            | Mnemonic::CVTPS2PI
+            | Mnemonic::CVTSI2SS
+            | Mnemonic::CVTSS2SI
+            | Mnemonic::CVTTSS2SI
+            | Mnemonic::DIVSS
+            | Mnemonic::MAXPS
+            | Mnemonic::MINPS
+            | Mnemonic::MULPS
+            | Mnemonic::MULSS
+            | Mnemonic::RSQRTSS
+            | Mnemonic::SHUFPS
+            | Mnemonic::SQRTSS
+            | Mnemonic::SUBPS
+            | Mnemonic::SUBSS
+            | Mnemonic::UCOMISS
+            | Mnemonic::UNPCKHPS
+            | Mnemonic::UNPCKLPS
+            | Mnemonic::XORPS
+            | Mnemonic::PACKSSDW
+            | Mnemonic::PACKUSWB
+            | Mnemonic::PADDW
+            | Mnemonic::PAVGB
+            | Mnemonic::PSHUFW
+            | Mnemonic::PSRAW
+            | Mnemonic::PSRLQ
+            | Mnemonic::PUNPCKHDQ
+            | Mnemonic::PUNPCKHWD
+            | Mnemonic::PUNPCKLDQ
+            | Mnemonic::PUNPCKLWD
+            | Mnemonic::FADD
+            | Mnemonic::FCOM
+            | Mnemonic::FCOMP
+            | Mnemonic::FDIV
+            | Mnemonic::FDIVR
+            | Mnemonic::FIADD
+            | Mnemonic::FIDIV
+            | Mnemonic::FILD
+            | Mnemonic::FIMUL
+            | Mnemonic::FLD
+            | Mnemonic::FLDCW
+            | Mnemonic::FMUL
+            | Mnemonic::FSUB
+            | Mnemonic::FSUBR
     )
 }
 
@@ -552,12 +654,6 @@ mod tests {
     #[case::indexed(&[
         0x56,                         // push esi
         0x8B, 0x04, 0x8C,             // mov  eax, [esp+ecx*4] ; <- any slot
-        0x5E,                         // pop  esi
-        0xC3,                         // ret
-    ])]
-    #[case::own_helper(&[
-        0x56,                         // push esi
-        0x87, 0x04, 0x24,             // xchg [esp], eax ; <- atomic helper
         0x5E,                         // pop  esi
         0xC3,                         // ret
     ])]

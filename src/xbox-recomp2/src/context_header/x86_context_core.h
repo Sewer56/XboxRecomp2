@@ -1243,6 +1243,9 @@ X86_FORCEINLINE uint32_t x86_float_flags(Float lhs, Float rhs)
            (__builtin_isless(lhs, rhs) ? X86EFlags::CF : 0);
 }
 
+X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot);
+X86_FORCEINLINE void x86_frame_store_f80(uint8_t* slot, x87_float value);
+
 struct X87FPU
 {
     union {
@@ -1351,7 +1354,7 @@ struct X87FPU
         top = 0;
     }
 
-    template<bool Volatile = true>
+    template<bool Volatile = true, bool Frame = false>
     void save(uint32_t addr, uint8_t* base, bool is32bits)
     {
         if (is32bits)
@@ -1364,7 +1367,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    x86_frame_store_f80(base + addr + 28 + i * 10, st[(top + i) & 7]);
+                else if constexpr (Volatile)
                     X86_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
                 else
                     X86_NONVOLATILE_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
@@ -1380,7 +1385,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    x86_frame_store_f80(base + addr + 14 + i * 10, st[(top + i) & 7]);
+                else if constexpr (Volatile)
                     X86_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
                 else
                     X86_NONVOLATILE_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
@@ -1388,7 +1395,7 @@ struct X87FPU
         }
     }
 
-    template<bool Volatile = true>
+    template<bool Volatile = true, bool Frame = false>
     void load(uint32_t addr, uint8_t* base, bool is32bits)
     {
         if (is32bits)
@@ -1402,7 +1409,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    st[(top + i) & 7] = x86_frame_load_f80(base + addr + 28 + i * 10);
+                else if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 28 + i * 10);
                 else
                     st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 28 + i * 10);
@@ -1419,7 +1428,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    st[(top + i) & 7] = x86_frame_load_f80(base + addr + 14 + i * 10);
+                else if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 14 + i * 10);
                 else
                     st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 14 + i * 10);

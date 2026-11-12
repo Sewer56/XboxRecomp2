@@ -10,8 +10,10 @@
 
 use super::emit::ea;
 use crate::codegen::function::model::{FrameAccess, StackLocals};
-use crate::decode::{Insn, Mnemonic};
+use crate::decode::{Insn, InstructionAttributes, Mnemonic};
 use core::fmt::Write as _;
+
+mod atomic;
 
 /// Load/store macro suffixes and their C++ types.
 const MACROS: [(&str, &str); 10] = [
@@ -49,6 +51,10 @@ pub(super) fn rewrite(
     out.clear();
     out.push_str(code);
 
+    if atomic::rewrite(access, insn, native, code, out) {
+        return;
+    }
+
     // Memory operands.
     for &(index, offset) in &access.operands {
         let address = ea(&insn.operands()[usize::from(index)], native);
@@ -71,6 +77,15 @@ pub(super) fn rewrite(
             "stack_slots_in_locals: expected one push or pop in: {code}"
         );
     }
+
+    if !access.operands.is_empty()
+        && insn
+            .instruction()
+            .attributes
+            .contains(InstructionAttributes::HAS_LOCK)
+    {
+        atomic::fence(out);
+    }
 }
 
 /// Declares `frame` and fills it from guest memory.
@@ -92,6 +107,14 @@ pub(super) fn write_prologue(locals: &StackLocals, text: &mut String) {
 
 /// Rewrites loads and stores of `address`.
 fn point_operand_at_frame(text: &mut String, address: &str, offset: u32) {
+    for method in ["save", "load"] {
+        replace_text(
+            text,
+            &format!(".{method}({address}, base, "),
+            &format!(".{method}<false, true>(0x{offset:X}, frame, "),
+        );
+    }
+
     for prefix in PREFIXES {
         replace_text(
             text,

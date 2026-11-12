@@ -83,12 +83,16 @@ impl StackFrame {
     ///
     /// - changes ESP in a way we can't follow;
     /// - puts a stack address in EBP that we can't follow;
-    /// - uses 16-bit addressing;
+    /// - uses 16-bit addressing, except `jcxz`, `loope`, no-ops and prefetch hints;
     /// - moves an offset outside the `i32` range.
     ///
     /// `call` and `ret` aren't handled here. The caller must deal with them.
     pub(in crate::codegen) fn step(&mut self, insn: &Insn) -> Option<FrameStep> {
         if ignores_memory_operand(insn.mnemonic()) {
+            return Some(FrameStep::Unchanged);
+        }
+
+        if matches!(insn.mnemonic(), Mnemonic::JCXZ | Mnemonic::LOOPE) {
             return Some(FrameStep::Unchanged);
         }
 
@@ -125,6 +129,33 @@ impl StackFrame {
             Mnemonic::PUSHFD => {
                 next.esp = next.esp.checked_sub(word)?;
                 FrameStep::PushOther(STACK_WORD_BYTES)
+            }
+            Mnemonic::PUSH
+                if matches!(
+                    dst,
+                    Some(
+                        Register::CS
+                            | Register::DS
+                            | Register::ES
+                            | Register::SS
+                            | Register::FS
+                            | Register::GS
+                    )
+                ) =>
+            {
+                let bytes = u32::from(insn.instruction().operand_width / 8);
+                next.esp = next.esp.checked_sub_unsigned(bytes)?;
+                FrameStep::PushOther(bytes)
+            }
+            Mnemonic::POP
+                if matches!(
+                    dst,
+                    Some(Register::DS | Register::ES | Register::SS | Register::FS | Register::GS)
+                ) =>
+            {
+                let bytes = u32::from(insn.instruction().operand_width / 8);
+                next.esp = next.esp.checked_add_unsigned(bytes)?;
+                FrameStep::PopOther(bytes)
             }
             Mnemonic::PUSH
                 if insn.instruction().operand_width == 16
@@ -360,6 +391,10 @@ mod tests {
     #[case::lea_base(&[0x8D, 0x6C, 0x24, 4], Some((0, Some(4))))] // lea ebp, [esp+4]
     #[case::increment_base(&[0x45], Some((0, Some(-7))))] // inc ebp
     #[case::push_flags(&[0x9C], Some((-4, Some(-8))))] // pushfd
+    #[case::push_segment(&[0x1E], Some((-4, Some(-8))))] // push ds
+    #[case::push_segment_word(&[0x66, 0x1E], Some((-2, Some(-8))))] // push ds, 16-bit
+    #[case::pop_segment(&[0x1F], Some((4, Some(-8))))] // pop ds
+    #[case::count_branch(&[0x67, 0xE3, 0], Some((0, Some(-8))))] // jcxz next
     #[case::push_word(&[0x66, 0x50], Some((-2, Some(-8))))] // push ax
     #[case::pop_memory(&[0x8F, 0x04, 0x24], Some((4, Some(-8))))] // pop [esp]
     #[case::pop_word(&[0x66, 0x58], Some((2, Some(-8))))] // pop ax

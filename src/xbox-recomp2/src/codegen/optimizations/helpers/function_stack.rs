@@ -82,7 +82,7 @@ impl<'a> FunctionStack<'a> {
     /// - A path leaves the function without a `ret`, like a tail-call `jmp`.
     ///   With `allow_tail_calls`, jumps out are fine if ESP is back where it
     ///   started.
-    /// - It uses 16-bit addressing, except ignored no-ops and prefetch hints.
+    /// - It uses 16-bit addressing, except `jcxz`, `loope`, no-ops and prefetch hints.
     /// - Two paths meet with different ESP or EBP.
     /// - A `ret` runs with ESP not back where it started.
     /// - A call moves ESP outside the `i32` range.
@@ -184,7 +184,10 @@ impl<'a> FunctionStack<'a> {
             }
 
             let returns = result.graph.op_targets(index).is_empty();
-            if insn.instruction().address_width != 32 && !ignores_memory_operand(insn.mnemonic()) {
+            if insn.instruction().address_width != 32
+                && !ignores_memory_operand(insn.mnemonic())
+                && !matches!(insn.mnemonic(), Mnemonic::JCXZ | Mnemonic::LOOPE)
+            {
                 return None; // skip 16-bit insns
             }
 
@@ -247,6 +250,14 @@ impl<'a> FunctionStack<'a> {
         targets.iter().map(|&target| target as OpIndex)
     }
 
+    /// Whether any path from `index` jumps out of the function.
+    pub(in crate::codegen) fn leaves_function(&self, index: OpIndex) -> bool {
+        self.graph
+            .edges(index)
+            .iter()
+            .any(|edge| matches!(edge, Edge::Function(_) | Edge::Indirect))
+    }
+
     /// Returns the instructions that some path from the entry reaches.
     pub(in crate::codegen) fn reachable(&self) -> impl Iterator<Item = &StackInstruction<'a>> {
         self.instructions.iter().filter(|item| item.frame.is_some())
@@ -255,7 +266,7 @@ impl<'a> FunctionStack<'a> {
 
 /// Whether `mnemonic` is a jump the stack argument pass supports.
 ///
-/// We leave out `loop`, because the recompiler can't emit it yet.
+/// We leave out `loop` and `loopne`, because the recompiler can't emit them yet.
 pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
     matches!(
         mnemonic,
@@ -263,6 +274,7 @@ pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
             | Mnemonic::JB
             | Mnemonic::JBE
             | Mnemonic::JECXZ
+            | Mnemonic::JCXZ
             | Mnemonic::JL
             | Mnemonic::JLE
             | Mnemonic::JNB
@@ -441,7 +453,7 @@ mod tests {
     #[case::paths_disagree(&[0x50, 0x75, 0xFD, 0x58, 0xC3])] // top: push eax; jnz top; pop eax; ret
     #[case::unbalanced_ret(&[0x50, 0xC3])] // push eax; ret
     #[case::loop_instruction(&[0xE2, 0xFE, 0xC3])] // top: loop top; ret
-    #[case::short_address(&[0x67, 0xE3, 0, 0xC3])] // jcxz next; ret
+    #[case::short_address(&[0x67, 0x8B, 0x00, 0xC3])] // mov eax,[bx+si]; ret
     #[case::indirect_jump(&[0xFF, 0xE0])] // jmp eax
     #[case::jump_out(&[0x74, 0x40, 0xC3])] // jz 0x1042; ret
     fn new_should_fail_on_functions_it_cannot_follow(#[case] code: &[u8]) {
