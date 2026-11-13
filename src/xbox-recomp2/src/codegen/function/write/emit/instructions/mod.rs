@@ -310,6 +310,7 @@ mod tests {
             needed_eflags: ALL_ARITHMETIC_FLAGS,
             direction: DirectionFlag::Unknown,
             needed_status: ConditionCodes::all(),
+            releases_lock: false,
             symbols: &SymbolTable::default(),
             imports: &ImportMap::default(),
             config: &config,

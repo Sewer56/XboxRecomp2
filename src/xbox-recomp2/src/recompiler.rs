@@ -266,9 +266,13 @@ impl<'a> Recompiler<'a> {
             platform,
             context_header: {
                 let mut header = format!(
-                    "#define X86_RECOMP_DEBUG {}\n#define X86_NONVOLATILE_MEMORY {}\n",
+                    "#define X86_RECOMP_DEBUG {}\n#define X86_NONVOLATILE_MEMORY {}\n\
+                     #define X86_SINGLE_THREAD_LOCKS_FROM 0x{:X}u\n\
+                     #define X86_CHECK_SINGLE_THREAD_LOCKS {}\n",
                     u8::from(config.debug),
                     u8::from(config.speed_hacks.runs_nonvolatile_memory()),
+                    config.speed_hacks.single_thread_locks_from().unwrap_or(0),
+                    u8::from(config.speed_hacks.runs_check_single_thread_locks()),
                 )
                 .into_bytes();
                 header.extend_from_slice(&assemble_context_header(&platform.context_overlay()));

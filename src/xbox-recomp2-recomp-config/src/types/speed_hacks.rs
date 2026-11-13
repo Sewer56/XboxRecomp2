@@ -64,6 +64,17 @@ pub struct SpeedHacks {
     /// Keep the stack slots of leaf functions in C++ locals.
     /// Stack memory below ESP then differs from real hw after a return.
     pub stack_slots_in_locals: bool,
+
+    /// Release spin locks with a regular store instead of a locked `xchg`.
+    pub plain_lock_release: bool,
+
+    /// `xchg` on memory at or above this guest address uses regular store.
+    /// Use only if one thread takes locks there.
+    pub single_thread_locks_from: u32,
+
+    /// Debug check for `single_thread_locks_from`.
+    /// Prints on error.
+    pub check_single_thread_locks: bool,
 }
 
 impl SpeedHacks {
@@ -136,6 +147,22 @@ impl SpeedHacks {
     pub fn runs_stack_slots_in_locals(&self) -> bool {
         self.enabled && self.stack_slots_in_locals
     }
+
+    /// The guest address at or above which `xchg` skips the locked instruction, if any.
+    pub fn single_thread_locks_from(&self) -> Option<u32> {
+        (self.enabled && self.single_thread_locks_from != 0)
+            .then_some(self.single_thread_locks_from)
+    }
+
+    /// Do we report `single_thread_locks_from` locks that two threads use?
+    pub fn runs_check_single_thread_locks(&self) -> bool {
+        self.enabled && self.check_single_thread_locks
+    }
+
+    /// Do `xchg`s that store zero run as a plain store?
+    pub fn runs_plain_lock_release(&self) -> bool {
+        self.enabled && self.plain_lock_release
+    }
 }
 
 impl Default for SpeedHacks {
@@ -156,6 +183,9 @@ impl Default for SpeedHacks {
             rep_memmove_memset: true,
             clobber_eflags_for_unknown_code: true,
             stack_slots_in_locals: true,
+            plain_lock_release: true,
+            single_thread_locks_from: 0,
+            check_single_thread_locks: false,
         }
     }
 }
@@ -184,7 +214,9 @@ mod tests {
             SpeedHacks::runs_native_sized_addresses,
             SpeedHacks::runs_rep_memmove_memset,
             SpeedHacks::runs_clobber_eflags_for_unknown_code,
-            SpeedHacks::runs_stack_slots_in_locals
+            SpeedHacks::runs_stack_slots_in_locals,
+            SpeedHacks::runs_plain_lock_release,
+            SpeedHacks::runs_check_single_thread_locks
         )]
         runs: fn(&SpeedHacks) -> bool,
         #[case] enabled: bool,
@@ -208,6 +240,9 @@ mod tests {
             rep_memmove_memset: own_switch,
             clobber_eflags_for_unknown_code: own_switch,
             stack_slots_in_locals: own_switch,
+            plain_lock_release: own_switch,
+            single_thread_locks_from: 0,
+            check_single_thread_locks: own_switch,
         };
 
         // Act

@@ -132,6 +132,7 @@ fn rewrite(ops: &mut Vec<Op>, call: usize, function: &Called, setup: &CallSetup)
             direction: DirectionFlag::Unknown,
             needed_status: ConditionCodes::all(),
             nonvolatile: false,
+            releases_lock: false,
         })
     });
     ops.splice(call..call, moves);

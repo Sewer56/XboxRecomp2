@@ -108,6 +108,9 @@ struct SpeedHacksSection {
     rep_memmove_memset: bool,
     clobber_eflags_for_unknown_code: bool,
     stack_slots_in_locals: bool,
+    plain_lock_release: bool,
+    single_thread_locks_from: u32,
+    check_single_thread_locks: bool,
 }
 
 /// A `fixes.banned_addresses` entry.
@@ -179,6 +182,9 @@ impl Default for SpeedHacksSection {
             rep_memmove_memset: hacks.rep_memmove_memset,
             clobber_eflags_for_unknown_code: hacks.clobber_eflags_for_unknown_code,
             stack_slots_in_locals: hacks.stack_slots_in_locals,
+            plain_lock_release: hacks.plain_lock_release,
+            single_thread_locks_from: hacks.single_thread_locks_from,
+            check_single_thread_locks: hacks.check_single_thread_locks,
         }
     }
 }
@@ -323,6 +329,9 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             rep_memmove_memset: raw.speed_hacks.rep_memmove_memset,
             clobber_eflags_for_unknown_code: raw.speed_hacks.clobber_eflags_for_unknown_code,
             stack_slots_in_locals: raw.speed_hacks.stack_slots_in_locals,
+            plain_lock_release: raw.speed_hacks.plain_lock_release,
+            single_thread_locks_from: raw.speed_hacks.single_thread_locks_from,
+            check_single_thread_locks: raw.speed_hacks.check_single_thread_locks,
         },
         ..RecompilerConfig::default()
     };
