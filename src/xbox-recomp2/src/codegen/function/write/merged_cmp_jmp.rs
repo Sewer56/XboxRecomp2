@@ -63,7 +63,7 @@ pub(super) fn write(
     if scoped {
         out.extend_from_slice(b"\t{\n");
     }
-    write_code(context, compare, scratch.code.as_str(), out);
+    write_code(context, compare, scratch, out);
 
     // // mov [esi], ecx
     // X86_STORE_U32(ctx.esi.u32, ctx.ecx.u32);
@@ -101,7 +101,7 @@ pub(super) fn write(
     scratch.code.clear();
     let mut emitter = guest_emitter(context, compare, function_state, &mut scratch.code);
     merged_cmp_jmp::write_end_flags(&mut emitter, &output, merged.end_flags);
-    write_code(context, compare, scratch.code.as_str(), out);
+    write_code(context, compare, scratch, out);
     if scoped {
         out.extend_from_slice(b"\t}\n");
     }
@@ -181,7 +181,7 @@ fn write_jump_or_select(
         MergedInstructionKind::Select => guest,
         _ => &merged.compare,
     };
-    write_code(context, owner, scratch.code.as_str(), out);
+    write_code(context, owner, scratch, out);
 }
 
 #[cfg(test)]
@@ -245,6 +245,7 @@ mod tests {
             platform: &PlainPlatform,
             base: model.address.0.into(),
             x87: &model.x87,
+            stack_locals: None,
         };
 
         // Ignore failures.

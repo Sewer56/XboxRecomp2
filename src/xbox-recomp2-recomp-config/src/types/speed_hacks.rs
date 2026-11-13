@@ -60,6 +60,10 @@ pub struct SpeedHacks {
 
     /// Assume code we can't see never passes eflags across a call or return.
     pub clobber_eflags_for_unknown_code: bool,
+
+    /// Keep the stack slots of leaf functions in C++ locals.
+    /// Stack memory below ESP then differs from real hw after a return.
+    pub stack_slots_in_locals: bool,
 }
 
 impl SpeedHacks {
@@ -127,6 +131,11 @@ impl SpeedHacks {
     pub fn runs_clobber_eflags_for_unknown_code(&self) -> bool {
         self.enabled && self.clobber_eflags_for_unknown_code
     }
+
+    /// Do leaf functions keep their stack slots in C++ locals?
+    pub fn runs_stack_slots_in_locals(&self) -> bool {
+        self.enabled && self.stack_slots_in_locals
+    }
 }
 
 impl Default for SpeedHacks {
@@ -146,6 +155,7 @@ impl Default for SpeedHacks {
             native_sized_addresses: true,
             rep_memmove_memset: true,
             clobber_eflags_for_unknown_code: true,
+            stack_slots_in_locals: true,
         }
     }
 }
@@ -173,7 +183,8 @@ mod tests {
             SpeedHacks::runs_lazy_cmov_load,
             SpeedHacks::runs_native_sized_addresses,
             SpeedHacks::runs_rep_memmove_memset,
-            SpeedHacks::runs_clobber_eflags_for_unknown_code
+            SpeedHacks::runs_clobber_eflags_for_unknown_code,
+            SpeedHacks::runs_stack_slots_in_locals
         )]
         runs: fn(&SpeedHacks) -> bool,
         #[case] enabled: bool,
@@ -196,6 +207,7 @@ mod tests {
             native_sized_addresses: own_switch,
             rep_memmove_memset: own_switch,
             clobber_eflags_for_unknown_code: own_switch,
+            stack_slots_in_locals: own_switch,
         };
 
         // Act

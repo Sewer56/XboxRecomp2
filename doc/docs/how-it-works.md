@@ -226,6 +226,12 @@ rep_memmove_memset = true
 #              Other calls we do trace correctly.
 clobber_eflags_for_unknown_code = true
 
+# Keep the stack slots of leaf functions (no calls) in C++ locals.
+# Side effect: Stack memory below ESP differs from real hw after a return.
+#              Shouldn't affect real game code (in any context).
+#              Only dirty hacks, maybe debuggers. So nothing on Xbox.
+stack_slots_in_locals = true
+
 # Extra hints for the optimisation passes.
 # Danger: Only add if you know what you're doing. (can read ASM)
 #

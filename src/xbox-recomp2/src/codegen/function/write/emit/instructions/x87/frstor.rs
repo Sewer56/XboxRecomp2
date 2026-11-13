@@ -4,8 +4,8 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let fpu = ctx.fpu();
     let operands = ctx.insn.operands();
 
-    if let Some(mem) = memory(&operands[0]) {
-        let mem_addr = decode_memory_operand_no_parentheses(mem);
+    if memory(&operands[0]).is_some() {
+        let mem_addr = ctx.ea(&operands[0]);
 
         if operands[0].size == 864 {
             //32 bits

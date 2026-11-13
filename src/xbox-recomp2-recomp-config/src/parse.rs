@@ -64,6 +64,13 @@ struct MidAsmHookEntry {
     hook: MidAsmHook,
 }
 
+/// The `[optimization_hints]` section.
+#[derive(Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct OptimizationHintsSection {
+    x87_stack_effects: Vec<X87StackEffectEntry>,
+}
+
 /// The `[optimizations]` section.
 #[derive(Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -80,13 +87,6 @@ struct OptimizationsSection {
     find_ebp_frames: bool,
     idiv32_after_cdq: bool,
     find_string_direction: bool,
-}
-
-/// The `[optimization_hints]` section.
-#[derive(Deserialize, Default)]
-#[serde(default, deny_unknown_fields)]
-struct OptimizationHintsSection {
-    x87_stack_effects: Vec<X87StackEffectEntry>,
 }
 
 /// The `[speed_hacks]` section.
@@ -107,6 +107,7 @@ struct SpeedHacksSection {
     native_sized_addresses: bool,
     rep_memmove_memset: bool,
     clobber_eflags_for_unknown_code: bool,
+    stack_slots_in_locals: bool,
 }
 
 /// A `fixes.banned_addresses` entry.
@@ -177,6 +178,7 @@ impl Default for SpeedHacksSection {
             native_sized_addresses: hacks.native_sized_addresses,
             rep_memmove_memset: hacks.rep_memmove_memset,
             clobber_eflags_for_unknown_code: hacks.clobber_eflags_for_unknown_code,
+            stack_slots_in_locals: hacks.stack_slots_in_locals,
         }
     }
 }
@@ -201,104 +203,6 @@ pub(super) fn load_bytes(for_display: &str, bytes: &[u8]) -> Result<LoadedConfig
         source: Box::new(source),
     })?;
     build(for_display, raw)
-}
-
-/// Turns the parsed file into a [`RecompilerConfig`] and collects warnings.
-fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
-    let mut config = RecompilerConfig {
-        directory_path: directory_of(path).into(),
-        file_path: raw.main.file_path.into(),
-        out_directory_path: raw.main.out_directory_path.into(),
-        debug: raw.main.debug,
-        function_hooks: raw
-            .fixes
-            .function_hooks
-            .into_iter()
-            .map(FunctionAddress)
-            .collect(),
-        optimizations: Optimizations {
-            enabled: raw.optimizations.enable,
-            eliminate_return_slot: raw.optimizations.eliminate_return_slot,
-            eliminate_stack_args: raw.optimizations.eliminate_stack_args,
-            trust_callee_returns: raw.optimizations.trust_callee_returns,
-            optimize_x87: raw.optimizations.optimize_x87,
-            optimize_mmx: raw.optimizations.optimize_mmx,
-            eliminate_dead_x87_status: raw.optimizations.eliminate_dead_x87_status,
-            eliminate_dead_flags: raw.optimizations.eliminate_dead_flags,
-            fuse_compare_branch: raw.optimizations.fuse_compare_branch,
-            find_ebp_frames: raw.optimizations.find_ebp_frames,
-            idiv32_after_cdq: raw.optimizations.idiv32_after_cdq,
-            find_string_direction: raw.optimizations.find_string_direction,
-        },
-        speed_hacks: SpeedHacks {
-            enabled: raw.speed_hacks.enable,
-            fast_trig: raw.speed_hacks.fast_trig,
-            fast_x87_status: raw.speed_hacks.fast_x87_status,
-            fast_x87_stack: raw.speed_hacks.fast_x87_stack,
-            fast_x87_ffree: raw.speed_hacks.fast_x87_ffree,
-            fast_fscale: raw.speed_hacks.fast_fscale,
-            fast_sse_status: raw.speed_hacks.fast_sse_status,
-            nonvolatile_stack: raw.speed_hacks.nonvolatile_stack,
-            plain_sse_memory: raw.speed_hacks.plain_sse_memory,
-            nonvolatile_memory: raw.speed_hacks.nonvolatile_memory,
-            lazy_cmov_load: raw.speed_hacks.lazy_cmov_load,
-            native_sized_addresses: raw.speed_hacks.native_sized_addresses,
-            rep_memmove_memset: raw.speed_hacks.rep_memmove_memset,
-            clobber_eflags_for_unknown_code: raw.speed_hacks.clobber_eflags_for_unknown_code,
-        },
-        ..RecompilerConfig::default()
-    };
-
-    for entry in raw.fixes.functions {
-        config.functions.insert_or_overwrite(
-            FunctionAddress::from(entry.address),
-            FunctionSize(entry.size),
-        );
-    }
-
-    for entry in raw.fixes.invalid_instructions {
-        config.invalid_instructions.insert_or_overwrite(
-            FunctionAddress::from(entry.data),
-            InvalidInstructionSize(entry.size),
-        );
-    }
-
-    for entry in raw.fixes.banned_addresses {
-        config.banned_addresses.insert_or_overwrite(
-            FunctionAddress::from(entry.start),
-            FunctionAddress::from(entry.end),
-        );
-    }
-
-    for entry in raw.optimization_hints.x87_stack_effects {
-        config
-            .optimization_hints
-            .x87_stack_effects
-            .insert_or_overwrite(
-                FunctionAddress::from(entry.address),
-                X87StackEffect {
-                    stack_at_entry: entry.stack_at_entry,
-                    stack_at_exit: entry.stack_at_exit,
-                },
-            );
-    }
-
-    for (index, table) in raw.switch.into_iter().enumerate() {
-        let key = u32::try_from(table.base).map_err(|_| ConfigError::Schema {
-            path: path.into(),
-            source: Box::new(toml::de::Error::custom(format!(
-                "switch[{index}].base does not fit in 32 bits"
-            ))),
-        })?;
-
-        config
-            .switch_tables
-            .insert_or_overwrite(FunctionAddress::from(key), table);
-    }
-
-    let warnings = build_midasm_hooks(raw.midasm_hook, &mut config);
-
-    Ok(LoadedConfig { config, warnings })
 }
 
 /// Fails on keys that were removed or moved.
@@ -376,6 +280,114 @@ fn reject_legacy_keys(path: &str, document: &Table) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// Turns the parsed file into a [`RecompilerConfig`] and collects warnings.
+fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
+    let mut config = RecompilerConfig {
+        directory_path: directory_of(path).into(),
+        file_path: raw.main.file_path.into(),
+        out_directory_path: raw.main.out_directory_path.into(),
+        debug: raw.main.debug,
+        function_hooks: raw
+            .fixes
+            .function_hooks
+            .into_iter()
+            .map(FunctionAddress)
+            .collect(),
+        optimizations: Optimizations {
+            enabled: raw.optimizations.enable,
+            eliminate_return_slot: raw.optimizations.eliminate_return_slot,
+            eliminate_stack_args: raw.optimizations.eliminate_stack_args,
+            trust_callee_returns: raw.optimizations.trust_callee_returns,
+            optimize_x87: raw.optimizations.optimize_x87,
+            optimize_mmx: raw.optimizations.optimize_mmx,
+            eliminate_dead_x87_status: raw.optimizations.eliminate_dead_x87_status,
+            eliminate_dead_flags: raw.optimizations.eliminate_dead_flags,
+            fuse_compare_branch: raw.optimizations.fuse_compare_branch,
+            find_ebp_frames: raw.optimizations.find_ebp_frames,
+            idiv32_after_cdq: raw.optimizations.idiv32_after_cdq,
+            find_string_direction: raw.optimizations.find_string_direction,
+        },
+        speed_hacks: SpeedHacks {
+            enabled: raw.speed_hacks.enable,
+            fast_trig: raw.speed_hacks.fast_trig,
+            fast_x87_status: raw.speed_hacks.fast_x87_status,
+            fast_x87_stack: raw.speed_hacks.fast_x87_stack,
+            fast_x87_ffree: raw.speed_hacks.fast_x87_ffree,
+            fast_fscale: raw.speed_hacks.fast_fscale,
+            fast_sse_status: raw.speed_hacks.fast_sse_status,
+            nonvolatile_stack: raw.speed_hacks.nonvolatile_stack,
+            plain_sse_memory: raw.speed_hacks.plain_sse_memory,
+            nonvolatile_memory: raw.speed_hacks.nonvolatile_memory,
+            lazy_cmov_load: raw.speed_hacks.lazy_cmov_load,
+            native_sized_addresses: raw.speed_hacks.native_sized_addresses,
+            rep_memmove_memset: raw.speed_hacks.rep_memmove_memset,
+            clobber_eflags_for_unknown_code: raw.speed_hacks.clobber_eflags_for_unknown_code,
+            stack_slots_in_locals: raw.speed_hacks.stack_slots_in_locals,
+        },
+        ..RecompilerConfig::default()
+    };
+
+    for entry in raw.fixes.functions {
+        config.functions.insert_or_overwrite(
+            FunctionAddress::from(entry.address),
+            FunctionSize(entry.size),
+        );
+    }
+
+    for entry in raw.fixes.invalid_instructions {
+        config.invalid_instructions.insert_or_overwrite(
+            FunctionAddress::from(entry.data),
+            InvalidInstructionSize(entry.size),
+        );
+    }
+
+    for entry in raw.fixes.banned_addresses {
+        config.banned_addresses.insert_or_overwrite(
+            FunctionAddress::from(entry.start),
+            FunctionAddress::from(entry.end),
+        );
+    }
+
+    for entry in raw.optimization_hints.x87_stack_effects {
+        config
+            .optimization_hints
+            .x87_stack_effects
+            .insert_or_overwrite(
+                FunctionAddress::from(entry.address),
+                X87StackEffect {
+                    stack_at_entry: entry.stack_at_entry,
+                    stack_at_exit: entry.stack_at_exit,
+                },
+            );
+    }
+
+    for (index, table) in raw.switch.into_iter().enumerate() {
+        let key = u32::try_from(table.base).map_err(|_| ConfigError::Schema {
+            path: path.into(),
+            source: Box::new(toml::de::Error::custom(format!(
+                "switch[{index}].base does not fit in 32 bits"
+            ))),
+        })?;
+
+        config
+            .switch_tables
+            .insert_or_overwrite(FunctionAddress::from(key), table);
+    }
+
+    let warnings = build_midasm_hooks(raw.midasm_hook, &mut config);
+
+    Ok(LoadedConfig { config, warnings })
+}
+
+/// Builds the error for an old key found in the file at `path`.
+fn deprecated_key(path: &str, field: String, advice: &'static str) -> ConfigError {
+    ConfigError::DeprecatedKey {
+        path: path.into(),
+        field: field.into(),
+        advice,
+    }
+}
+
 /// Adds each `[[midasm_hook]]` entry to `config`.
 fn build_midasm_hooks(
     entries: Vec<MidAsmHookEntry>,
@@ -414,15 +426,6 @@ fn build_midasm_hooks(
     }
 
     warnings
-}
-
-/// Builds the error for an old key found in the file at `path`.
-fn deprecated_key(path: &str, field: String, advice: &'static str) -> ConfigError {
-    ConfigError::DeprecatedKey {
-        path: path.into(),
-        field: field.into(),
-        advice,
-    }
 }
 
 #[cfg(test)]

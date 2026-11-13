@@ -18,6 +18,7 @@ pub(in crate::codegen) mod helpers;
 mod idiv32_after_cdq;
 mod merge_cmp_jmp;
 mod mmx_locals;
+mod stack_slots_in_locals;
 mod x87;
 
 /// Runs all optimisation passes.
@@ -37,6 +38,12 @@ pub(crate) fn run(
     // Run after stack arg elimination.
     if switches.runs_eliminate_return_slot() {
         eliminate_return_slot::run(models, graph, diag);
+    }
+
+    // After the stack passes, which change pushes and ESP offsets.
+    // Before `fuse_compare_branch`, whose merged ops the stack walk can't read.
+    if hacks.runs_stack_slots_in_locals() {
+        stack_slots_in_locals::run(models, diag);
     }
 
     // eflag elimination runs last.

@@ -334,7 +334,7 @@ mod tests {
     ) {
         // Arrange.
         let model = analyzed_function(code);
-        let stack = FunctionStack::new(&model, no_calls).unwrap();
+        let stack = FunctionStack::new(&model, no_calls, false).unwrap();
 
         // Act.
         let arguments = StackArguments::find(&stack);

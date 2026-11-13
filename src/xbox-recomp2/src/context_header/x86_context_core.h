@@ -41,12 +41,14 @@
 #endif
 
 #include <climits>
+#include <cfloat>
 #include <cmath>
 #include <csetjmp>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <utility>
 #include <atomic>
 
 #include "stdio.h"
@@ -161,7 +163,13 @@ using x87_float = long double;
 
 #define X86_LOAD_F32(addr) (*reinterpret_cast<volatile float*>(base + (addr)))
 #define X86_LOAD_F64(addr) (*reinterpret_cast<volatile double*>(base + (addr)))
-#if defined(X86_HOST_X86)
+
+// Some x86 hosts, including Windows clang, use an eight-byte long double.
+#if defined(X86_HOST_X86) && LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384
+#define X86_NATIVE_F80 1
+#endif
+
+#if defined(X86_NATIVE_F80)
 #define X86_LOAD_F80(addr) (*reinterpret_cast<volatile long double*>(base + (addr)))
 #else
 #define X86_LOAD_F80(addr) x86_load_f80(base + (addr))
@@ -176,7 +184,7 @@ using x87_float = long double;
 //Floating point variants
 #define X86_STORE_F32(addr, value) (*reinterpret_cast<volatile float*>(base + (addr)) = static_cast<float>(value))
 #define X86_STORE_F64(addr, value) (*reinterpret_cast<volatile double*>(base + (addr)) = static_cast<double>(value))
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
 #define X86_STORE_F80(addr, value) (*reinterpret_cast<volatile long double*>(base + (addr)) = static_cast<long double>(value))
 #else
 #define X86_STORE_F80(addr, value) x86_store_f80(base + (addr), static_cast<double>(value))
@@ -244,7 +252,7 @@ typedef float x86_guest_m128 __attribute__((vector_size(16), aligned(16), may_al
 template<typename T, bool Volatile>
 struct x86_slot { typedef volatile T type; };
 template<typename T>
-struct x86_slot<T, false> { typedef T __attribute__((may_alias)) type; };
+struct x86_slot<T, false> { typedef T __attribute__((may_alias, aligned(1))) type; };
 
 #define X86_LOAD_AS(T, Volatile, addr) (*reinterpret_cast<typename x86_slot<T, Volatile>::type*>(base + (addr)))
 #define X86_STORE_AS(T, Volatile, addr, value) (X86_LOAD_AS(T, Volatile, addr) = (value))
@@ -263,7 +271,7 @@ struct x86_slot<T, false> { typedef T __attribute__((may_alias)) type; };
 #define X86_NONVOLATILE_STORE_F32(addr, value) X86_STORE_AS(float, false, addr, static_cast<float>(value))
 #define X86_NONVOLATILE_STORE_F64(addr, value) X86_STORE_AS(double, false, addr, static_cast<double>(value))
 
-#if defined(X86_HOST_X86)
+#if defined(X86_NATIVE_F80)
 #define X86_NONVOLATILE_LOAD_F80(addr) X86_LOAD_AS(long double, false, addr)
 #define X86_NONVOLATILE_STORE_F80(addr, value) X86_STORE_AS(long double, false, addr, static_cast<long double>(value))
 #else
@@ -1235,6 +1243,9 @@ X86_FORCEINLINE uint32_t x86_float_flags(Float lhs, Float rhs)
            (__builtin_isless(lhs, rhs) ? X86EFlags::CF : 0);
 }
 
+X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot);
+X86_FORCEINLINE void x86_frame_store_f80(uint8_t* slot, x87_float value);
+
 struct X87FPU
 {
     union {
@@ -1343,7 +1354,7 @@ struct X87FPU
         top = 0;
     }
 
-    template<bool Volatile = true>
+    template<bool Volatile = true, bool Frame = false>
     void save(uint32_t addr, uint8_t* base, bool is32bits)
     {
         if (is32bits)
@@ -1356,7 +1367,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    x86_frame_store_f80(base + addr + 28 + i * 10, st[(top + i) & 7]);
+                else if constexpr (Volatile)
                     X86_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
                 else
                     X86_NONVOLATILE_STORE_F80(addr + 28 + i * 10, st[(top + i) & 7]);
@@ -1372,7 +1385,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    x86_frame_store_f80(base + addr + 14 + i * 10, st[(top + i) & 7]);
+                else if constexpr (Volatile)
                     X86_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
                 else
                     X86_NONVOLATILE_STORE_F80(addr + 14 + i * 10, st[(top + i) & 7]);
@@ -1380,7 +1395,7 @@ struct X87FPU
         }
     }
 
-    template<bool Volatile = true>
+    template<bool Volatile = true, bool Frame = false>
     void load(uint32_t addr, uint8_t* base, bool is32bits)
     {
         if (is32bits)
@@ -1394,7 +1409,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    st[(top + i) & 7] = x86_frame_load_f80(base + addr + 28 + i * 10);
+                else if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 28 + i * 10);
                 else
                     st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 28 + i * 10);
@@ -1411,7 +1428,9 @@ struct X87FPU
             for (int i = 0; i < 8; i++)
             {
                 // Convert long double to 80-bit extended precision
-                if constexpr (Volatile)
+                if constexpr (Frame)
+                    st[(top + i) & 7] = x86_frame_load_f80(base + addr + 14 + i * 10);
+                else if constexpr (Volatile)
                     st[(top + i) & 7] = X86_LOAD_F80(addr + 14 + i * 10);
                 else
                     st[(top + i) & 7] = X86_NONVOLATILE_LOAD_F80(addr + 14 + i * 10);
@@ -2057,6 +2076,96 @@ X86_FORCEINLINE uint16_t X86_POP16(X86Context& __restrict ctx, uint8_t* base)
     uint16_t value = X86_LOAD_AS(uint16_t, Volatile, ctx.esp.u32);
     ctx.esp.u32 += 2;
     return value;
+}
+
+// ── stack_slots_in_locals speed hack ─────────────────────────────────────────
+
+template<typename T>
+X86_FORCEINLINE T x86_frame_load(const uint8_t* slot)
+{
+    T value;
+    memcpy(&value, slot, sizeof(T));
+    return value;
+}
+
+template<typename T>
+X86_FORCEINLINE void x86_frame_store(uint8_t* slot, T value)
+{
+    memcpy(slot, &value, sizeof(T));
+}
+
+// Copies the word at `frame[offset]` in from guest memory.
+X86_FORCEINLINE void x86_frame_enter_word(uint8_t* frame, uint32_t address, uint8_t* base, uint32_t offset)
+{
+    const uint32_t word = x86_frame_load<uint32_t>(base + (address + offset));
+    x86_frame_store<uint32_t>(frame + offset, word);
+}
+
+template<uint32_t... Words>
+X86_FORCEINLINE void x86_frame_enter(uint8_t* frame, uint32_t address, uint8_t* base,
+                                     std::integer_sequence<uint32_t, Words...>)
+{
+    (x86_frame_enter_word(frame, address, base, Words * 4), ...);
+}
+
+// Fills `frame` from guest memory, one word at a time.
+template<uint32_t Size>
+X86_FORCEINLINE void X86_FRAME_ENTER(uint8_t* frame, uint32_t address, uint8_t* base)
+{
+    static_assert(Size % 4 == 0, "frame size is whole words");
+    x86_frame_enter(frame, address, base, std::make_integer_sequence<uint32_t, Size / 4>());
+}
+
+#define X86_FRAME_LOAD(T, offset) x86_frame_load<T>(frame + (offset))
+#define X86_FRAME_STORE(T, offset, value) x86_frame_store<T>(frame + (offset), static_cast<T>(value))
+
+X86_FORCEINLINE x87_float x86_frame_load_f80(const uint8_t* slot)
+{
+#if defined(X86_NATIVE_F80)
+    // Guest m80 is ten bytes, even when sizeof(long double) is sixteen.
+    long double value = 0;
+    memcpy(&value, slot, 10);
+    return static_cast<x87_float>(value);
+#else
+    return x86_load_f80(slot);
+#endif
+}
+
+X86_FORCEINLINE void x86_frame_store_f80(uint8_t* slot, x87_float value)
+{
+#if defined(X86_NATIVE_F80)
+    const long double extended = static_cast<long double>(value);
+    memcpy(slot, &extended, 10);
+#else
+    x86_store_f80(slot, value);
+#endif
+}
+
+#define X86_FRAME_LOAD_F80(offset) x86_frame_load_f80(frame + (offset))
+#define X86_FRAME_STORE_F80(offset, value) x86_frame_store_f80(frame + (offset), (value))
+
+X86_FORCEINLINE void X86_FRAME_PUSH(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset, uint32_t value)
+{
+    x86_frame_store<uint32_t>(frame + offset, value);
+    ctx.esp.u32 -= 4;
+}
+
+X86_FORCEINLINE uint32_t X86_FRAME_POP(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset)
+{
+    ctx.esp.u32 += 4;
+    return x86_frame_load<uint32_t>(frame + offset);
+}
+
+X86_FORCEINLINE void X86_FRAME_PUSH16(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset, uint16_t value)
+{
+    x86_frame_store<uint16_t>(frame + offset, value);
+    ctx.esp.u32 -= 2;
+}
+
+X86_FORCEINLINE uint16_t X86_FRAME_POP16(X86Context& __restrict ctx, uint8_t* frame, uint32_t offset)
+{
+    ctx.esp.u32 += 2;
+    return x86_frame_load<uint16_t>(frame + offset);
 }
 
 // CONDITION CODE HELPER

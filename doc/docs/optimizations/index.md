@@ -20,6 +20,7 @@ and before being written out as C++.
 | [`idiv32_after_cdq`]          | Uses a 32-bit `idiv` after `cdq`.                                |
 | [`find_string_direction`]     | Skips the direction check in `rep movs` and co.                  |
 | [`nonvolatile_memory`]        | Speed hack. Lets Clang merge or drop guest loads and stores.     |
+| [`stack_slots_in_locals`]     | Speed hack. Keeps leaf functions' stack slots in a local array.  |
 
 ## Framerate
 
@@ -83,4 +84,5 @@ e.g. to track the stack, or find every caller of a function.
 [`idiv32_after_cdq`]: idiv-after-cdq.md
 [`find_string_direction`]: find-string-direction.md
 [`nonvolatile_memory`]: nonvolatile-memory.md
+[`stack_slots_in_locals`]: stack-slots-in-locals.md
 [helpers]: helpers/index.md

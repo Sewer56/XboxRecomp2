@@ -16,7 +16,7 @@ use crate::decode::{DISASM_BUFFER_SIZE, DecodeBuffer, Decoder, DisasmFormatter};
 use crate::executable::Executable;
 use crate::platform::GuestPlatform;
 use crate::templates::{SUB_NAME, render};
-use model::{FunctionModel, X87Plan};
+use model::{FunctionModel, StackLocals, X87Plan};
 use std::borrow::Cow;
 use std::io::Write;
 use write::emit::CodeWriter;
@@ -43,6 +43,9 @@ pub(crate) struct FunctionScratch {
 
     /// Bytes the formatter writes into.
     disasm: Vec<u8>,
+
+    /// Holds an instruction's C++ after its stack accesses move to `frame`.
+    frame_code: String,
 }
 
 /// Details about the current function that the writing code reads.
@@ -56,6 +59,9 @@ struct GenerationContext<'a> {
 
     /// How to write the function's x87 code.
     x87: &'a X87Plan,
+
+    /// Stack slots kept in the local `frame` array, if any.
+    stack_locals: Option<&'a StackLocals>,
 }
 
 impl FunctionScratch {
@@ -67,6 +73,7 @@ impl FunctionScratch {
             text: String::with_capacity(4096),
             formatter: DisasmFormatter::new(),
             disasm: vec![0; DISASM_BUFFER_SIZE],
+            frame_code: String::new(),
         }
     }
 }
@@ -128,6 +135,7 @@ pub(crate) fn write_function(
         platform,
         base,
         x87: &model.x87,
+        stack_locals: model.stack_locals.as_ref(),
     };
     write::write(&context, model, &name, scratch, state, out);
 }

@@ -3,11 +3,11 @@
 //! stack-tracking.md in docs may be useful. my amigo
 
 use super::known_callers::direct_call_target;
-use super::op_graph::{OpGraph, OpIndex};
-use super::stack_frame::StackFrame;
+use super::op_graph::{Edge, OpGraph, OpIndex};
+use super::stack_frame::{StackFrame, ignores_memory_operand};
 use crate::codegen::function::model::{FunctionModel, GuestOp, Op, Return};
 use crate::config::FunctionAddress;
-use crate::decode::{BranchType, InstructionCategory, Mnemonic};
+use crate::decode::{BranchType, Insn, InstructionCategory, Mnemonic};
 use optional::Optioned;
 
 /// What calling a function does to ESP and EBP.
@@ -80,7 +80,9 @@ impl<'a> FunctionStack<'a> {
     /// - It reaches an indirect jump, or a jump [`is_branch`] rejects, like `loop`.
     ///   Switch tables are fine if every case stays in the function.
     /// - A path leaves the function without a `ret`, like a tail-call `jmp`.
-    /// - It uses 16-bit addressing.
+    ///   With `allow_tail_calls`, jumps out are fine if ESP is back where it
+    ///   started.
+    /// - It uses 16-bit addressing, except `jcxz`, `loope`, no-ops and prefetch hints.
     /// - Two paths meet with different ESP or EBP.
     /// - A `ret` runs with ESP not back where it started.
     /// - A call moves ESP outside the `i32` range.
@@ -88,6 +90,7 @@ impl<'a> FunctionStack<'a> {
     pub(in crate::codegen) fn new(
         model: &'a FunctionModel,
         calls: impl Fn(FunctionAddress) -> Option<CallEffect>,
+        allow_tail_calls: bool,
     ) -> Option<Self> {
         // Bail out if we have hooks.
         if !model.hooks.is_empty() {
@@ -172,10 +175,19 @@ impl<'a> FunctionStack<'a> {
             let guest = item.instruction;
             let insn = &guest.insn;
 
-            // Note: We bail out here with ? in case flow successors are not available.
+            // Note: We bail out here in case flow successors are not available.
             //       That's for out-of-function jumps or cases we can't analyze.
-            let returns = result.graph.successors(index)?.is_empty();
-            if insn.instruction().address_width != 32 {
+            let leaves = result.graph.successors(index).is_none();
+            let is_tail = is_tail_call(&result.graph, index, insn, frame);
+            if leaves && !(allow_tail_calls && is_tail) {
+                return None;
+            }
+
+            let returns = result.graph.op_targets(index).is_empty();
+            if insn.instruction().address_width != 32
+                && !ignores_memory_operand(insn.mnemonic())
+                && !matches!(insn.mnemonic(), Mnemonic::JCXZ | Mnemonic::LOOPE)
+            {
                 return None; // skip 16-bit insns
             }
 
@@ -234,8 +246,16 @@ impl<'a> FunctionStack<'a> {
         &self,
         index: OpIndex,
     ) -> impl Iterator<Item = OpIndex> + '_ {
-        let targets = self.graph.successors(index).unwrap_or_default();
+        let targets = self.graph.op_targets(index);
         targets.iter().map(|&target| target as OpIndex)
+    }
+
+    /// Whether any path from `index` jumps out of the function.
+    pub(in crate::codegen) fn leaves_function(&self, index: OpIndex) -> bool {
+        self.graph
+            .edges(index)
+            .iter()
+            .any(|edge| matches!(edge, Edge::Function(_) | Edge::Indirect))
     }
 
     /// Returns the instructions that some path from the entry reaches.
@@ -246,7 +266,7 @@ impl<'a> FunctionStack<'a> {
 
 /// Whether `mnemonic` is a jump the stack argument pass supports.
 ///
-/// We leave out `loop`, because the recompiler can't emit it yet.
+/// We leave out `loop` and `loopne`, because the recompiler can't emit them yet.
 pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
     matches!(
         mnemonic,
@@ -254,6 +274,7 @@ pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
             | Mnemonic::JB
             | Mnemonic::JBE
             | Mnemonic::JECXZ
+            | Mnemonic::JCXZ
             | Mnemonic::JL
             | Mnemonic::JLE
             | Mnemonic::JNB
@@ -268,7 +289,24 @@ pub(in crate::codegen) fn is_branch(mnemonic: Mnemonic) -> bool {
             | Mnemonic::JP
             | Mnemonic::JS
             | Mnemonic::JZ
+            | Mnemonic::LOOPE
     )
+}
+
+/// Whether op `index` leaves the function as a tail call.
+fn is_tail_call(graph: &OpGraph<'_>, index: OpIndex, insn: &Insn, frame: StackFrame) -> bool {
+    let jump = matches!(
+        insn.instruction().meta.category,
+        InstructionCategory::COND_BR | InstructionCategory::UNCOND_BR
+    );
+
+    if !jump || frame.esp != 0 {
+        return false;
+    }
+
+    // Aborts and unknown code aren't calls.
+    let mut edges = graph.edges(index).iter();
+    edges.all(|edge| matches!(edge, Edge::Op(_) | Edge::Function(_) | Edge::Indirect))
 }
 
 /// A `calls` lookup for [`FunctionStack::new`] that knows no functions.
@@ -337,7 +375,7 @@ mod tests {
         let model = analyzed_function(&code);
 
         // Act
-        let stack = FunctionStack::new(&model, callee_only).unwrap();
+        let stack = FunctionStack::new(&model, callee_only, false).unwrap();
 
         // Assert
         let frames: Vec<_> = stack.instructions.iter().map(|item| item.frame).collect();
@@ -385,10 +423,14 @@ mod tests {
         }
 
         // Act
-        let stack = FunctionStack::new(&model, |target| {
-            assert_eq!(target, CALLEE);
-            Some(effect)
-        })
+        let stack = FunctionStack::new(
+            &model,
+            |target| {
+                assert_eq!(target, CALLEE);
+                Some(effect)
+            },
+            false,
+        )
         .unwrap();
 
         // Assert
@@ -411,7 +453,7 @@ mod tests {
     #[case::paths_disagree(&[0x50, 0x75, 0xFD, 0x58, 0xC3])] // top: push eax; jnz top; pop eax; ret
     #[case::unbalanced_ret(&[0x50, 0xC3])] // push eax; ret
     #[case::loop_instruction(&[0xE2, 0xFE, 0xC3])] // top: loop top; ret
-    #[case::short_address(&[0x67, 0xE3, 0, 0xC3])] // jcxz next; ret
+    #[case::short_address(&[0x67, 0x8B, 0x00, 0xC3])] // mov eax,[bx+si]; ret
     #[case::indirect_jump(&[0xFF, 0xE0])] // jmp eax
     #[case::jump_out(&[0x74, 0x40, 0xC3])] // jz 0x1042; ret
     fn new_should_fail_on_functions_it_cannot_follow(#[case] code: &[u8]) {
@@ -419,7 +461,7 @@ mod tests {
         let model = analyzed_function(code);
 
         // Act
-        let stack = FunctionStack::new(&model, callee_only);
+        let stack = FunctionStack::new(&model, callee_only, false);
 
         // Assert
         assert!(stack.is_none());

@@ -57,10 +57,13 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
         } else {
             //Handle regular indirect jump
             // Handle regular indirect jump dynamically
-            let target =
-                GuestAddress32::from(memory(&operands[0]).unwrap().disp.displacement as u32);
+            let mem = memory(&operands[0]).unwrap();
+            let target = GuestAddress32::from(mem.disp.displacement as u32);
             ctx.x87_local_to_ctx();
-            if ctx.imports.resolve_thunk(target.get().into()).is_some() {
+            if mem.base == Register::NONE
+                && mem.index == Register::NONE
+                && ctx.imports.resolve_thunk(target.get().into()).is_some()
+            {
                 print_function_call_addr(ctx, target, false);
             } else {
                 let target_ea = ctx.ea(&operands[0]);

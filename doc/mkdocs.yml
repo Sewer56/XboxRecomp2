@@ -90,6 +90,7 @@ nav:
       - Find String Direction: optimizations/find-string-direction.md
       - Skip Unused x87 Status: optimizations/skip-unused-x87-status.md
       - Nonvolatile Memory: optimizations/nonvolatile-memory.md
+      - Stack Slots in Locals: optimizations/stack-slots-in-locals.md
 
   - Why I Wrote XboxRecomp2: why-i-wrote-xboxrecomp2.md
   - License: https://reloaded-project.github.io/Reloaded.MkDocsMaterial.Themes.R2/Pages/license.html

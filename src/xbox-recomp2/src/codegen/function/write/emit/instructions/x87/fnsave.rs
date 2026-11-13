@@ -5,8 +5,8 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     //note, some instruction like "9B DD 71 08" will show as "fsave" on ida, but zydis detect these as fwait + fsave.
     let operands = ctx.insn.operands();
 
-    if let Some(mem) = memory(&operands[0]) {
-        let mem_addr = decode_memory_operand_no_parentheses(mem);
+    if memory(&operands[0]).is_some() {
+        let mem_addr = ctx.ea(&operands[0]);
 
         if operands[0].size == 864 {
             //32 bits
