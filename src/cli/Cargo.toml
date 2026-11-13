@@ -1,6 +1,6 @@
 [package]
 name = "xbox-recomp2-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "CLI for Rust port of the XboxRecomp x86-to-C++ recompiler (code generator only)"
 repository = "https://github.com/Sewer56/XboxRecomp2"
@@ -15,8 +15,8 @@ name = "xboxrecomp2"
 path = "src/main.rs"
 
 [dependencies]
-xbox-recomp2 = { path = "../xbox-recomp2", version = "0.2.0" }
-xbox-recomp2-xbox = { path = "../xbox-recomp2-xbox", version = "0.2.0" }
+xbox-recomp2 = { path = "../xbox-recomp2", version = "0.3.0" }
+xbox-recomp2-xbox = { path = "../xbox-recomp2-xbox", version = "0.3.0" }
 argh = { version = "0.1.19", default-features = false, features = ["help"] }
 
 [lints]
