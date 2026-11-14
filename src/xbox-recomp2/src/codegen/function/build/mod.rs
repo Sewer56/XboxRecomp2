@@ -186,6 +186,7 @@ fn add_step(
                 direction: DirectionFlag::Unknown,
                 needed_status: ConditionCodes::all(),
                 nonvolatile: false,
+                releases_lock: false,
             };
             if insn.mnemonic() == Mnemonic::CALL {
                 // We can do some optimisations around CALLs

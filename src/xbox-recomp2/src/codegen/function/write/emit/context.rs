@@ -31,6 +31,9 @@ pub(in crate::codegen::function::write) struct Emitter<'a> {
     /// x87 condition codes observable after this instruction.
     pub needed_status: ConditionCodes,
 
+    /// Whether this `xchg` stores zero, releasing a spin lock.
+    pub releases_lock: bool,
+
     /// The program's functions.
     pub symbols: &'a SymbolTable,
 

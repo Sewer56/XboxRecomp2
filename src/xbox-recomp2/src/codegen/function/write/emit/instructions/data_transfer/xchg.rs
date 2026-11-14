@@ -10,6 +10,22 @@ pub(in super::super) fn emit(ctx: &mut Emitter<'_>) {
     let op2 = &operands[1];
     let atomic_suffix = operand_size_name(op1.size);
 
+    // Speed hack `plain_lock_release`: unlock with a plain store.
+    if ctx.releases_lock {
+        let (mem, reg) = match (register(op1), register(op2)) {
+            (Some(reg), None) => (op2, reg),
+            (None, Some(reg)) => (op1, reg),
+            _ => return ctx.missing_form(),
+        };
+        let reg_str = get_x86_reg(reg);
+        let ea = ctx.ea(mem);
+        cpp!(
+            ctx.out,
+            "{reg_str} = X86_RELEASE_LOCK_{atomic_suffix}({ea});"
+        );
+        return;
+    }
+
     if register(op1).is_some() && register(op2).is_some() {
         let op1_str = get_x86_reg(register(op1).unwrap());
         let op2_str = get_x86_reg(register(op2).unwrap());

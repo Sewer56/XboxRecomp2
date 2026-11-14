@@ -530,6 +530,7 @@ fn guest_emitter<'a>(
         needed_eflags: guest.needed_flags,
         direction: guest.direction,
         needed_status: guest.needed_status,
+        releases_lock: guest.releases_lock,
         symbols: &context.executable.symbols,
         imports: &context.executable.imports,
         config: context.config,
@@ -673,6 +674,7 @@ mod tests {
             direction: DirectionFlag::Unknown,
             needed_status: ConditionCodes::all(),
             nonvolatile: false,
+            releases_lock: false,
         };
         let executable = executable(&code);
         let config = RecompilerConfig {

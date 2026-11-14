@@ -279,6 +279,11 @@ pub(crate) struct GuestOp {
 
     /// Whether this instruction's memory operand skips `volatile`.
     pub nonvolatile: bool,
+
+    /// Whether this `xchg` stores zero, releasing a spin lock.
+    ///
+    /// Set by the `plain_lock_release` speed hack.
+    pub releases_lock: bool,
 }
 
 /// Which way string instructions like `rep movsd` walk memory.

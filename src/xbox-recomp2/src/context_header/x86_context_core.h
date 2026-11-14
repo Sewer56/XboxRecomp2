@@ -17,6 +17,14 @@
 #define X86_NONVOLATILE_MEMORY 0
 #endif
 
+#ifndef X86_SINGLE_THREAD_LOCKS_FROM
+#define X86_SINGLE_THREAD_LOCKS_FROM 0u
+#endif
+
+#ifndef X86_CHECK_SINGLE_THREAD_LOCKS
+#define X86_CHECK_SINGLE_THREAD_LOCKS 0
+#endif
+
 // Tells the compiler a point is never reached. The switch `default` case uses
 // it when debug is off.
 #if defined(_MSC_VER)
@@ -433,6 +441,123 @@ X86_FORCEINLINE bool x86_rep_stos_memset(uint8_t* base, uint32_t& edi, uint32_t&
 #define X86_ATOMIC_XCHG_U16(addr, value) std::atomic_exchange(reinterpret_cast<std::atomic<uint16_t>*>(base + (addr)), static_cast<uint16_t>(value))
 #define X86_ATOMIC_XCHG_U32(addr, value) std::atomic_exchange(reinterpret_cast<std::atomic<uint32_t>*>(base + (addr)), static_cast<uint32_t>(value))
 #endif
+
+// Speed hack `single_thread_locks_from`.
+//
+// We assume only one thread ever takes the spin locks at or above
+// X86_SINGLE_THREAD_LOCKS_FROM.
+//
+// Locks below that address keep the real `xchg`.
+#if X86_SINGLE_THREAD_LOCKS_FROM != 0
+#if X86_CHECK_SINGLE_THREAD_LOCKS
+#include <cstdio>
+
+// Debug check for the hack above.
+//
+// This gives us logging to verify nothing went wrong.
+struct X86LockCheck
+{
+    static constexpr uint32_t SLOTS = 1u << 16;
+    static constexpr uint32_t MAX_REPORTS = 200;
+
+    static inline std::atomic<uint64_t> owners[SLOTS];
+    static inline std::atomic<uint32_t> next_thread{ 1 };
+    static inline std::atomic<uint32_t> reports{ 0 };
+
+    static uint32_t thread()
+    {
+        thread_local uint32_t id = next_thread.fetch_add(1);
+        return id;
+    }
+
+    static FILE* log()
+    {
+        static FILE* file = fopen("x86_lock_check.log", "w");
+        return file;
+    }
+
+    static bool announce()
+    {
+        const char* text = "[lock check] on: watching spin locks at or above 0x%08X, reports also go to x86_lock_check.log\n";
+        fprintf(stderr, text, X86_SINGLE_THREAD_LOCKS_FROM);
+        if (log() != nullptr)
+        {
+            fprintf(log(), text, X86_SINGLE_THREAD_LOCKS_FROM);
+            fflush(log());
+        }
+
+        return true;
+    }
+
+    static void acquired(uint32_t addr, uint32_t held)
+    {
+        static const bool announced = announce();
+        (void)announced;
+
+        const uint32_t me = thread();
+        auto& slot = owners[(addr >> 2) & (SLOTS - 1)];
+        const uint64_t last = slot.exchange((static_cast<uint64_t>(addr) << 32) | me, std::memory_order_relaxed);
+        const uint32_t other = static_cast<uint32_t>(last);
+        if (static_cast<uint32_t>(last >> 32) != addr || other == me)
+            return;
+
+        if (reports.fetch_add(1, std::memory_order_relaxed) >= MAX_REPORTS)
+            return;
+
+        const char* text = "[lock check] spin lock 0x%08X used by threads %u and %u (%s)\n";
+        const char* when = held != 0 ? "AT THE SAME TIME" : "at different times";
+        fprintf(stderr, text, addr, other, me, when);
+        fflush(stderr);
+        if (log() != nullptr)
+        {
+            fprintf(log(), text, addr, other, me, when);
+            fflush(log());
+        }
+    }
+};
+#endif
+
+X86_FORCEINLINE uint32_t X86_XCHG_SINGLE_THREAD(uint8_t* base, uintptr_t addr, uint32_t value)
+{
+    auto* lock = reinterpret_cast<std::atomic<uint32_t>*>(base + addr);
+    if (static_cast<uint32_t>(addr) < X86_SINGLE_THREAD_LOCKS_FROM)
+        return lock->exchange(value);
+
+#if X86_CHECK_SINGLE_THREAD_LOCKS
+    {
+        const uint32_t held = lock->exchange(value);
+        if (value != 0)
+            X86LockCheck::acquired(static_cast<uint32_t>(addr), held);
+        return held;
+    }
+#endif
+
+    const uint32_t old = lock->load(std::memory_order_relaxed);
+    lock->store(value, std::memory_order_release);
+    return old;
+}
+
+#undef X86_ATOMIC_XCHG_U32
+#define X86_ATOMIC_XCHG_U32(addr, value) X86_XCHG_SINGLE_THREAD(base, addr, static_cast<uint32_t>(value))
+#endif
+
+// Speed hack `plain_lock_release`.
+//
+// - An `xchg` that stores zero is releasing a spin lock.
+// - At that point only the thread holding the lock writes to it.
+// - So a regular load/store is enough.
+template<typename T>
+X86_FORCEINLINE T X86_RELEASE_LOCK(uint8_t* base, uintptr_t addr)
+{
+    auto* lock = reinterpret_cast<std::atomic<T>*>(base + addr);
+    const T old = lock->load(std::memory_order_relaxed);
+    lock->store(0, std::memory_order_release);
+    return old;
+}
+
+#define X86_RELEASE_LOCK_U8(addr)  X86_RELEASE_LOCK<uint8_t>(base, addr)
+#define X86_RELEASE_LOCK_U16(addr) X86_RELEASE_LOCK<uint16_t>(base, addr)
+#define X86_RELEASE_LOCK_U32(addr) X86_RELEASE_LOCK<uint32_t>(base, addr)
 
 // Same for lock xadd.
 #if defined(X86_HOST_X86) && !X86_NONVOLATILE_MEMORY
