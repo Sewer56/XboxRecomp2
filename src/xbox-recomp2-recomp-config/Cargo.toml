@@ -1,6 +1,6 @@
 [package]
 name = "xbox-recomp2-recomp-config"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "recompConfig.toml parser for the XboxRecomp2 recompiler"
 repository = "https://github.com/Sewer56/XboxRecomp2"
