@@ -33,7 +33,7 @@ And makes it go brr~ 🦔 🏎️
 
 ![](./images/shadowrecomp.lossy.q85.avif){: width="960" style="display:block;margin:0 auto" }
 
-<center>2500FPS w/ 9800X3D, Shadow The Hedgehog (Xbox) on Linux</center>
+<center>3700FPS w/ 9950X3D, Shadow The Hedgehog (Xbox) on Linux</center>
 
 For many reasons, ***x86 is a notoriously difficult architecture***
 to recompile; ***especially at speed***.<br/>
