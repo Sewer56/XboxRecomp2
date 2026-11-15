@@ -7,9 +7,9 @@ on:
     paths:
       - "doc/mkdocs.yml"
       - "doc/docs/**"
-    pull_request:
-      branches: [main]
-      paths:
+  pull_request:
+    branches: [main]
+    paths:
       - "doc/mkdocs.yml"
       - "doc/docs/**"
 
@@ -25,6 +25,6 @@ jobs:
         uses: Reloaded-Project/devops-mkdocs@v1
         with:
           requirements: ./doc/docs/requirements.txt
-          publish-to-pages: ${{ github.event_name == 'push' }}
+          publish-to-pages: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           checkout-current-repo: true
           config-file: ./doc/mkdocs.yml
