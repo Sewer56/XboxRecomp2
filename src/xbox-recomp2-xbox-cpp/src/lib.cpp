@@ -11,7 +11,7 @@ namespace {
 struct DiagContext {
     const DiagSink *sink;
     std::exception_ptr error;
-}
+};
 
 void diagTrampoline(const std::uint8_t *data, std::size_t len, void *user) noexcept {
     auto &ctx = *static_cast<DiagContext *>(user);
