@@ -1076,6 +1076,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "xbox-recomp2-xbox-cpp"
+version = "0.4.0"
+dependencies = [
+ "xbox-recomp2",
+ "xbox-recomp2-executable",
+ "xbox-recomp2-xbox",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"

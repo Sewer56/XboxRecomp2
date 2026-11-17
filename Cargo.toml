@@ -6,6 +6,7 @@ members = [
     "src/cli",
     "src/xbox-recomp2-executable",
     "src/xbox-recomp2-xbox",
+    "src/xbox-recomp2-xbox-cpp",
     "src/xbox-recomp2-recomp-config",
 ]
 

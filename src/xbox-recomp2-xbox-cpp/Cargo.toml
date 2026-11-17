@@ -1,0 +1,20 @@
+[package]
+name = "xbox-recomp2-xbox-cpp"
+version = "0.4.0"
+edition = "2024"
+description = "C ABI for xbox-recomp2-xbox, consumed by the C++ wrapper in this folder"
+repository = "https://github.com/Sewer56/XboxRecomp2"
+license-file = "LICENSE"
+publish = false
+
+[lib]
+name = "xbox_recomp2_xbox_cpp" # Underscores so the produced library is consistent on every platform
+crate-type = ["staticlib"]
+
+[dependencies]
+xbox-recomp2 = { path = "../xbox-recomp2", version = "0.4.0" }
+xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.4.0" }
+xbox-recomp2-xbox = { path = "../xbox-recomp2-xbox", version = "0.4.0" }
+
+[lints]
+workspace = true
