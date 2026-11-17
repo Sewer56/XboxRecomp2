@@ -1,14 +1,29 @@
 #include "xbox_recomp2/recomp.hpp"
 #include "xbox_recomp2/xbox_recomp2.h"
 
+#include <exception>
+#include <string_view>
+
 namespace xbox_recomp2 {
 
 namespace {
 
-void diagTrampoline(const std::uint8_t *data, std::size_t len, void *user) {
-    const auto &sink = *static_cast<const DiagSink *>(user);
-    sink(std::string_view(reinterpret_cast<const char *>(data), len));
+struct DiagContext {
+    const DiagSink *sink;
+    std::exception_ptr error;
 }
+
+void diagTrampoline(const std::uint8_t *data, std::size_t len, void *user) noexcept {
+    auto &ctx = *static_cast<DiagContext *>(user);
+
+    if (ctx.error) return;
+
+    try {
+        (*ctx.sink)(std::string_view(reinterpret_cast<const char *>(data), len));
+    } catch (...) {
+        ctx.error = std::current_exception();
+    }
+ }
 
 RunError::Code toCode(int code) {
     switch (code) {
@@ -29,9 +44,15 @@ std::optional<RunError> run(const std::filesystem::path &input, const DiagSink &
     const std::u8string u8 = input.u8string();
     const std::string utf8(reinterpret_cast<const char *>(u8.data()), u8.size());
 
+    DiagContext ctx{&diag, nullptr};
     XbRunError err{};
     const int rc = xb_run(utf8.c_str(), diag ? diagTrampoline : nullptr,
-                          diag ? const_cast<DiagSink *>(&diag) : nullptr, &err);
+                          diag ? &ctx : nullptr, &err);
+
+    if (ctx.error) {
+        xb_error_free(&err);
+        std::rethrow_exception(ctx.error);
+    }
 
     if (rc == XB_OK) return std::nullopt;
 

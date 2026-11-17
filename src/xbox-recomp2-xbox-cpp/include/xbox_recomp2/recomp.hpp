@@ -53,7 +53,9 @@ using DiagSink = std::function<void(std::string_view)>;
 /// Runs the recompiler with Xbox defaults.
 ///
 /// @param input config TOML to load.
-/// @param diag  receives progress and diagnostics. This might be empty.
+/// @param diag  receives progress and diagnostics. This might be empty. If it throws,
+///              later output will be dropped and the exception will be rethrown after
+///              the recompiler returns.
 /// @return nullopt on success, otherwise the error.
 [[nodiscard]] std::optional<RunError> run(const std::filesystem::path &input,
                                           const DiagSink &diag = {});
