@@ -403,7 +403,10 @@ fn write_instruction(
         write_missing(context, guest, scratch, out);
         report_failure(state, context.base, guest, false);
     } else {
+        // Scope the instruction's temporaries so goto statements can't jump over local initialization.
+        out.extend_from_slice(b"\t{\n");
         write_code(context, guest, scratch, out);
+        out.extend_from_slice(b"\t}\n");
     }
 
     if guest.last_in_function {
