@@ -316,7 +316,7 @@ pub unsafe extern "C" fn xb_executable_entry_point(exe: *const XbExecutable) -> 
     unsafe { exe.as_ref() }.map_or(0, |e| e.0.entry_point.get())
 }
 
-/// Input file size in bytes. 0 for null.
+/// Input file size in bytes. Returns 0 for a null handle.
 ///
 /// # Safety
 ///
@@ -327,7 +327,7 @@ pub unsafe extern "C" fn xb_executable_size(exe: *const XbExecutable) -> u32 {
     unsafe { exe.as_ref() }.map_or(0, |e| e.0.size)
 }
 
-/// Size of the image in guest memory. 0 for null.
+/// Size of the image in guest memory. Returns 0 for a null handle.
 ///
 /// # Safety
 ///
