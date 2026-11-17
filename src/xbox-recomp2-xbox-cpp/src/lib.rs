@@ -2,8 +2,8 @@
 //!
 //! Keep in sync with `include/xbox_recomp2/xbox_recomp2.h`.
 
-use core::ffi::{c_char, c_int, c_void};
-use std::ffi::{CStr, CString};
+use core::ffi::{CStr, c_char, c_int, c_void};
+use std::ffi::{CString};
 use std::io::{self, Write};
 use std::path::Path;
 use xbox_recomp2::{LoadError, RunError};
