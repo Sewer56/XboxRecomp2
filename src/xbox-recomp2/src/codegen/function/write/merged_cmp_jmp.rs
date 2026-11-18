@@ -435,7 +435,9 @@ mod tests {
          {
          const uint32_t value = ctx.ebx.u32;
          // mov ebx, 0x02
+         {
          ctx.ebx.u32 = 0x2u;
+         }
          // jz 0x00001009
          if (value == 0) goto loc_1009;
          }",

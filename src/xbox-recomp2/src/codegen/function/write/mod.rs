@@ -403,7 +403,7 @@ fn write_instruction(
         write_missing(context, guest, scratch, out);
         report_failure(state, context.base, guest, false);
     } else {
-        // Scope the instruction's temporaries so goto statements can't jump over local initialization.
+        // TEMP: Place temp registers in scope { }, so goto statements can't jump over.
         out.extend_from_slice(b"\t{\n");
         write_code(context, guest, scratch, out);
         out.extend_from_slice(b"\t}\n");
