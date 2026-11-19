@@ -54,6 +54,7 @@ jobs:
           # Windows
           - { label: "Windows x64", os: windows-latest, target: x86_64-pc-windows-msvc, use-cross: false }
           - { label: "Windows x86", os: windows-latest, target: i686-pc-windows-msvc, use-cross: false }
+          - { label: "Windows ARM64", os: windows-11-arm, target: aarch64-pc-windows-msvc, use-cross: false }
 
           # macOS
           - { label: "macOS Intel", os: macos-15-intel, target: x86_64-apple-darwin, use-cross: false }
@@ -94,6 +95,7 @@ jobs:
           # Windows
           - { label: "CLI Windows x64", os: windows-latest, target: x86_64-pc-windows-msvc, use-cross: false }
           - { label: "CLI Windows x86", os: windows-latest, target: i686-pc-windows-msvc, use-cross: false }
+          - { label: "CLI Windows ARM64", os: windows-11-arm, target: aarch64-pc-windows-msvc, use-cross: false }
 
           # macOS
           - { label: "CLI macOS Intel", os: macos-15-intel, target: x86_64-apple-darwin, use-cross: false }
