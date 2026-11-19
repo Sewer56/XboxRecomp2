@@ -348,6 +348,20 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
         ..RecompilerConfig::default()
     };
 
+    let mut seen: HashMap<&str, &str> = HashMap::new(); // alias -> key
+    for (key, alias) in &config.symbol_aliases {
+        if let Some(prev) = seen.insert(alias.as_str(), key.as_str()) {
+            // No two symbols can have the same emitted name.
+            // Either we catch it here, or it becomes a compiler error later.
+            return Err(ConfigError::Schema {
+                path: path.into(),
+                source: Box::new(toml::de::Error::custom(format!(
+                    "alias.symbol_aliases: alias `{alias}` is used by both `{prev}` and `{key}`"
+                ))),
+            });
+        }
+    }
+
     for entry in raw.fixes.functions {
         config.functions.insert_or_overwrite(
             FunctionAddress::from(entry.address),
@@ -597,22 +611,25 @@ mod tests {
         );
     }
 
-    /// Tests that symbol aliases correctly parse.
+    /// Tests that no symbol aliases can have duplicated emitted names.
     #[test]
-    fn symbol_aliases_parse_correctly() {
+    fn symbol_aliases_no_duplicates() {
         let result = parse(indoc! {r#"
             [alias]
             symbol_aliases = {
-                sub_3D3240 = "D3D_CommonSetDebugRegisters"
+                sub_3D3240 = "D3D_CommonSetDebugRegisters",
+                sub_3D3241 = "D3D_CommonSetDebugRegisters"
             }
         "#});
 
-        let loadedCfg = result.expect("config should parse successfully");
+        let Err(err) = result else {
+            panic!("duplicate alias should be rejected");
+        };
 
-        assert_eq!(
-            loadedCfg.config.symbol_aliases.get("sub_3D3240").map(String::as_str),
-            Some("D3D_CommonSetDebugRegisters")
-        );
+        let msg = err.to_string();
+        assert!(msg.contains("D3D_CommonSetDebugRegisters"), "{msg}");
+        assert!(msg.contains("sub_3D3240"), "{msg}");
+        assert!(msg.contains("sub_3D3241"), "{msg}");
     }
 
 
