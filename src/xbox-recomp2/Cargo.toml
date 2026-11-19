@@ -1,6 +1,6 @@
 [package]
 name = "xbox-recomp2"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 description = "Rust port of the XboxRecomp x86-to-C++ recompiler (code generator only)"
 repository = "https://github.com/Sewer56/XboxRecomp2"
@@ -13,8 +13,8 @@ keywords = ["x86", "recompiler", "transpiler", "emulation", "xbox"]
 categories = ["compilers", "emulators", "development-tools"]
 
 [dependencies]
-xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.4.0" }
-xbox-recomp2-recomp-config = { path = "../xbox-recomp2-recomp-config", version = "0.4.0" }
+xbox-recomp2-executable = { path = "../xbox-recomp2-executable", version = "0.5.0" }
+xbox-recomp2-recomp-config = { path = "../xbox-recomp2-recomp-config", version = "0.5.0" }
 zydis = { version = "4.1.1", features = ["formatter", "encoder"] }
 endian-writer = "2.3.0"
 ahash = "0.8"

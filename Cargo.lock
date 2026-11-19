@@ -1010,7 +1010,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xbox-recomp2"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1029,7 +1029,7 @@ dependencies = [
 
 [[package]]
 name = "xbox-recomp2-cli"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "argh",
  "xbox-recomp2",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "xbox-recomp2-executable"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ahash",
  "bitflags",
@@ -1050,7 +1050,7 @@ dependencies = [
 
 [[package]]
 name = "xbox-recomp2-recomp-config"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ahash",
  "derive_more",
@@ -1064,7 +1064,7 @@ dependencies = [
 
 [[package]]
 name = "xbox-recomp2-xbox"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitflags",
  "endian-writer",
