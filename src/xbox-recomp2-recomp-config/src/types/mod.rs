@@ -93,8 +93,11 @@ pub struct RecompilerConfig {
     pub switch_tables: AddressMap<SwitchTable>,
 
     // ── [alias] ──────────────────────────────────────────────────────────────
-    /// Defined mappings of `emitted name` -> `chosen name`.
-    /// This matches for `sub_<address>` emitted names aswell as recompiler derived symbol names.
+    /// Mappings of `emitted name` -> `chosen name`.
+    /// Examples:
+    ///
+    /// - `sub_3D3240` -> `D3D_CommonSetDebugRegisters`
+    /// - `_xstart` -> `EntryPoint`
     pub symbol_aliases: HashMap<String, String>,
 
     // ── [fixes] ──────────────────────────────────────────────────────────────
@@ -144,11 +147,12 @@ impl RecompilerConfig {
             .any(|(start, end)| addr >= start.0 && addr <= end.0)
     }
 
-    /// Returns the mapped alias of `symbol`, or leaves it untouched and returns the original name if it has no mapping.
+    /// Returns the mapped alias of `symbol`.
+    /// Leaves untouched and returns original name if it has no mapping.
     ///
     /// # Arguments
     ///
-    /// * `symbol` - A reference to the symbol string.
+    /// * `symbol` - Name of the symbol.
     ///
     /// # Returns
     ///
