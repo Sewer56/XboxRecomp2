@@ -40,9 +40,7 @@ pub mod switch_table;
 /// labels = [0x100, 0x200, 0x300]
 ///
 /// [alias]
-/// symbol_aliases = [
-///   sub_3D3240 = "D3D_CommonSetDebugRegisters"
-/// ]
+/// symbol_aliases = { "sub_3D3240" = "D3D_CommonSetDebugRegisters" }
 ///
 /// [[midasm_hook]]
 /// name = "OnLoad"
@@ -145,22 +143,5 @@ impl RecompilerConfig {
         self.banned_addresses
             .iter()
             .any(|(start, end)| addr >= start.0 && addr <= end.0)
-    }
-
-    /// Returns the mapped alias of `symbol`.
-    /// Leaves untouched and returns original name if it has no mapping.
-    ///
-    /// # Arguments
-    ///
-    /// * `symbol` - Name of the symbol.
-    ///
-    /// # Returns
-    ///
-    /// The mapped alias, or the input name if no alias exists.
-    pub fn symbol_to_alias<'a>(&'a self, name: &'a str) -> &'a str {
-        self.symbol_aliases
-            .get(name)
-            .map(String::as_str)
-            .unwrap_or(name)
     }
 }

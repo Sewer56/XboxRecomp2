@@ -67,6 +67,6 @@ fn fixture(dir: &Path, out_dir: &str) -> Recompiler<'static> {
         .section(".data", 0x11400, SectionFlags::DATA, &[0; 0x100])
         .recompiler(config);
     recompiler.analyse(&mut Vec::new());
-    recompiler.rename_entry_symbol();
+    recompiler.rename_symbols().unwrap();
     recompiler
 }

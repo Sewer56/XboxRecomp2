@@ -130,9 +130,6 @@ pub(crate) fn write_function(
         None => Cow::Owned(render(SUB_NAME, &[("address", &format!("{base:X}"))])),
     };
 
-    // And now add name alias!
-    let mapped_name: &str = config.symbol_to_alias(name.as_ref());
-
     // Write the function as C++.
     let context = GenerationContext {
         executable,
@@ -142,5 +139,5 @@ pub(crate) fn write_function(
         x87: &model.x87,
         stack_locals: model.stack_locals.as_ref(),
     };
-    write::write(&context, model, mapped_name, scratch, state, out);
+    write::write(&context, model, &name, scratch, state, out);
 }

@@ -8,8 +8,8 @@ use super::{ConfigError, LoadedConfig, MidAsmHook, RecompilerConfig, directory_o
 use core::str::from_utf8;
 use serde::Deserialize;
 use serde::de::Error as _;
-use toml::{Table, Value};
 use std::collections::HashMap;
+use toml::{Table, Value};
 
 /// The whole config file as serde reads it, before it becomes a
 /// [`RecompilerConfig`].
@@ -52,9 +52,9 @@ struct FixesSection {
 
 /// The `[alias]` section.
 #[derive(Deserialize, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 struct AliasesSection {
-    symbol_aliases: HashMap<String, String>
+    symbol_aliases: HashMap<String, String>,
 }
 
 /// The `[main]` section.
@@ -631,7 +631,6 @@ mod tests {
         assert!(msg.contains("sub_3D3240"), "{msg}");
         assert!(msg.contains("sub_3D3241"), "{msg}");
     }
-
 
     /// Checks that `result` is a schema error and returns its message.
     fn schema_error(result: &Result<LoadedConfig, ConfigError>) -> String {

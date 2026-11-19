@@ -112,6 +112,20 @@ impl SymbolTable {
         self.symbols.iter()
     }
 
+    /// Iterates the table with mutable access.
+    ///
+    /// # Returns
+    ///
+    /// An iterator over all symbols in address order.
+    ///
+    /// # Remarks
+    ///
+    /// Don't change symbol addresses.
+    /// Lookups rely on the table staying sorted by address.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Symbol> {
+        self.symbols.iter_mut()
+    }
+
     /// Symbol count.
     ///
     /// # Returns
