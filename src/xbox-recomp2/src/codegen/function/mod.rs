@@ -121,7 +121,7 @@ pub(crate) fn write_function(
     out: &mut Vec<u8>,
 ) {
     // Use the following name:
-    // - Symbol from kernel table.
+    // - Symbol from kernel table or alias.
     // or
     // - Fallback to `sub_<address>`.
     let base = GuestAddress32::from(model.address.0);
