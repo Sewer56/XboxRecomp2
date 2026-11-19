@@ -9,6 +9,7 @@ use core::str::from_utf8;
 use serde::Deserialize;
 use serde::de::Error as _;
 use toml::{Table, Value};
+use std::collections::HashMap;
 
 /// The whole config file as serde reads it, before it becomes a
 /// [`RecompilerConfig`].
@@ -33,6 +34,9 @@ struct ConfigDocument {
     switch: Vec<SwitchTable>,
 
     #[serde(default)]
+    alias: AliasesSection,
+
+    #[serde(default)]
     midasm_hook: Vec<MidAsmHookEntry>,
 }
 
@@ -44,6 +48,13 @@ struct FixesSection {
     function_hooks: Vec<u32>,
     invalid_instructions: Vec<InvalidInstructionEntry>,
     banned_addresses: Vec<BannedAddressEntry>,
+}
+
+/// The `[alias]` section.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct AliasesSection {
+    symbol_aliases: HashMap<String, String>
 }
 
 /// The `[main]` section.
@@ -333,6 +344,7 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             single_thread_locks_from: raw.speed_hacks.single_thread_locks_from,
             check_single_thread_locks: raw.speed_hacks.check_single_thread_locks,
         },
+        symbol_aliases: raw.alias.symbol_aliases,
         ..RecompilerConfig::default()
     };
 
@@ -584,6 +596,25 @@ mod tests {
                 .starts_with("cfg/recomp.toml:")
         );
     }
+
+    /// Tests that symbol aliases correctly parse.
+    #[test]
+    fn symbol_aliases_parse_correctly() {
+        let result = parse(indoc! {r#"
+            [alias]
+            symbol_aliases = {
+                sub_3D3240 = "D3D_CommonSetDebugRegisters"
+            }
+        "#});
+
+        let loadedCfg = result.expect("config should parse successfully");
+
+        assert_eq!(
+            loadedCfg.config.symbol_aliases.get("sub_3D3240").map(String::as_str),
+            Some("D3D_CommonSetDebugRegisters")
+        );
+    }
+
 
     /// Checks that `result` is a schema error and returns its message.
     fn schema_error(result: &Result<LoadedConfig, ConfigError>) -> String {

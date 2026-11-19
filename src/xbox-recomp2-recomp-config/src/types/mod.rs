@@ -7,8 +7,7 @@ pub use optimization_hints::{OptimizationHints, X87StackEffect};
 pub use optimizations::Optimizations;
 pub use register::{Register, RegisterIndexError};
 pub use speed_hacks::SpeedHacks;
-use std::collections::BTreeSet;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 pub use switch_table::SwitchTable;
 
 pub mod address_map;
@@ -40,7 +39,7 @@ pub mod switch_table;
 /// base = 0x1234
 /// labels = [0x100, 0x200, 0x300]
 ///
-/// [[alias]]
+/// [alias]
 /// symbol_aliases = [
 ///   sub_3D3240 = "D3D_CommonSetDebugRegisters"
 /// ]
