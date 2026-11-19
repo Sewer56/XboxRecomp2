@@ -8,6 +8,7 @@ pub use optimizations::Optimizations;
 pub use register::{Register, RegisterIndexError};
 pub use speed_hacks::SpeedHacks;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 pub use switch_table::SwitchTable;
 
 pub mod address_map;
@@ -38,6 +39,11 @@ pub mod switch_table;
 /// register = "edx"
 /// base = 0x1234
 /// labels = [0x100, 0x200, 0x300]
+///
+/// [[alias]]
+/// symbol_aliases = [
+///   sub_3D3240 = "D3D_CommonSetDebugRegisters"
+/// ]
 ///
 /// [[midasm_hook]]
 /// name = "OnLoad"
@@ -87,6 +93,11 @@ pub struct RecompilerConfig {
     /// Switch tables set in configuration.
     pub switch_tables: AddressMap<SwitchTable>,
 
+    // ── [alias] ──────────────────────────────────────────────────────────────
+    /// Defined mappings of `emitted name` -> `chosen name`.
+    /// This matches for `sub_<address>` emitted names aswell as recompiler derived symbol names.
+    pub symbol_aliases: HashMap<String, String>,
+
     // ── [fixes] ──────────────────────────────────────────────────────────────
     /// Guest functions to recompile: `address` -> `size` (`fixes.functions`).
     pub functions: AddressMap<FunctionSize>,
@@ -132,5 +143,21 @@ impl RecompilerConfig {
         self.banned_addresses
             .iter()
             .any(|(start, end)| addr >= start.0 && addr <= end.0)
+    }
+
+    /// Returns the mapped alias of `symbol`, or leaves it untouched and returns the original name if it has no mapping.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - A reference to the symbol string.
+    ///
+    /// # Returns
+    ///
+    /// The mapped alias, or the input name if no alias exists.
+    pub fn symbol_to_alias<'a>(&'a self, name: &'a str) -> &'a str {
+        self.symbol_aliases
+            .get(name)
+            .map(String::as_str)
+            .unwrap_or(name)
     }
 }

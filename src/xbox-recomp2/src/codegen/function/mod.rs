@@ -121,12 +121,16 @@ pub(crate) fn write_function(
     out: &mut Vec<u8>,
 ) {
     // Use the symbol name at the function's address, or `sub_<address>`
-    // when there is no symbol.
+    // when there is no symbol. If an alias is specified for either the symbol name
+    // or sub_<address> name, it will use that instead.
     let base = GuestAddress32::from(model.address.0);
     let name: Cow<'_, str> = match executable.symbols.find(u64::from(base)) {
         Some(symbol) => Cow::Borrowed(&*symbol.name),
         None => Cow::Owned(render(SUB_NAME, &[("address", &format!("{base:X}"))])),
     };
+
+    // Attempt to map the name to the defined alias, as explained above.
+    let mapped_name: &str = config.symbol_to_alias(name.as_ref());
 
     // Write the function as C++.
     let context = GenerationContext {
@@ -137,5 +141,5 @@ pub(crate) fn write_function(
         x87: &model.x87,
         stack_locals: model.stack_locals.as_ref(),
     };
-    write::write(&context, model, &name, scratch, state, out);
+    write::write(&context, model, mapped_name, scratch, state, out);
 }
