@@ -416,7 +416,8 @@ impl<'a> Recompiler<'a> {
         }
 
         // Quick check for duplicate.
-        let mut name_to_address: HashMap<&str, u64> = HashMap::with_capacity(self.executable.symbols.len());
+        let mut name_to_address: HashMap<&str, u64> =
+            HashMap::with_capacity(self.executable.symbols.len());
         for symbol in self.executable.symbols.iter() {
             let address = symbol.address.get();
             let first = match name_to_address.insert(&symbol.name, address) {
