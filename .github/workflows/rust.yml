@@ -72,6 +72,7 @@ jobs:
           upload-coverage: false
           target: ${{ matrix.target }}
           use-cross: ${{ matrix.use-cross }}
+          use-tarpaulin: false
       - name: Check documentation is valid
         env:
           RUSTDOCFLAGS: "-D warnings"
