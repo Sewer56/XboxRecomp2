@@ -7,7 +7,7 @@ pub use optimization_hints::{OptimizationHints, X87StackEffect};
 pub use optimizations::Optimizations;
 pub use register::{Register, RegisterIndexError};
 pub use speed_hacks::SpeedHacks;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 pub use switch_table::SwitchTable;
 
 pub mod address_map;
@@ -38,6 +38,9 @@ pub mod switch_table;
 /// register = "edx"
 /// base = 0x1234
 /// labels = [0x100, 0x200, 0x300]
+///
+/// [alias]
+/// symbol_aliases = { "sub_3D3240" = "D3D_CommonSetDebugRegisters" }
 ///
 /// [[midasm_hook]]
 /// name = "OnLoad"
@@ -86,6 +89,14 @@ pub struct RecompilerConfig {
     // ── Top-level [[switch]] ─────────────────────────────────────────────────
     /// Switch tables set in configuration.
     pub switch_tables: AddressMap<SwitchTable>,
+
+    // ── [alias] ──────────────────────────────────────────────────────────────
+    /// Mappings of `emitted name` -> `chosen name`.
+    /// Examples:
+    ///
+    /// - `sub_3D3240` -> `D3D_CommonSetDebugRegisters`
+    /// - `_xstart` -> `EntryPoint`
+    pub symbol_aliases: HashMap<String, String>,
 
     // ── [fixes] ──────────────────────────────────────────────────────────────
     /// Guest functions to recompile: `address` -> `size` (`fixes.functions`).

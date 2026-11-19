@@ -120,8 +120,10 @@ pub(crate) fn write_function(
     state: &mut RunState<'_>,
     out: &mut Vec<u8>,
 ) {
-    // Use the symbol name at the function's address, or `sub_<address>`
-    // when there is no symbol.
+    // Use the following name:
+    // - Symbol from kernel table or alias.
+    // or
+    // - Fallback to `sub_<address>`.
     let base = GuestAddress32::from(model.address.0);
     let name: Cow<'_, str> = match executable.symbols.find(u64::from(base)) {
         Some(symbol) => Cow::Borrowed(&*symbol.name),

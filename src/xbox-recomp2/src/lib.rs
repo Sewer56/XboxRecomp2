@@ -55,6 +55,8 @@ mod utils;
 ///   List them under `fixes.functions` in a config.
 /// - [`RunError::MissingEntryPoint`]: no function at the entry point.
 ///   Check exclusion ranges or add its range to `fixes.functions`.
+/// - [`RunError::DuplicateName`]: another symbol or alias already has this name.
+///   Pick a different alias.
 /// - [`RunError::Out`]: writing the output failed.
 pub fn run_with(
     input: &Path,

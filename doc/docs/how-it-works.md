@@ -115,7 +115,7 @@ flowchart TD
 | --------------------------------- | ----- |
 | `Recompiler::load_input`          | 1-2   |
 | `Recompiler::analyse`             | 3     |
-| `Recompiler::rename_entry_symbol` | 4     |
+| `Recompiler::rename_symbols`      | 4     |
 | `Recompiler::recompile`           | 5-6   |
 
 ### 1. Load the config
@@ -277,6 +277,9 @@ banned_addresses = [            # address ranges never recompiled
 register = "edx"
 base = 0x1234
 labels = [0x100, 0x200, 0x300]  # jump target per case index
+
+[alias]                         # rename functions in the generated C++
+symbol_aliases = { "sub_3D3240" = "D3D_CommonSetDebugRegisters" }
 
 [[midasm_hook]]                 # call C++ at a guest address
 name = "OnLoad"
@@ -546,12 +549,14 @@ We can just write the indirect call with a direct one.
 And then we're good.  
 See [Function Discovery] for more details.
 
-### 4. Rename the entry symbol
+### 4. Rename symbols
 
 !!! note "Where this happens"
 
-    `Recompiler::rename_entry_symbol` (`recompiler.rs`) renames the entry
-    point symbol to `_xstart`, the emitted contract's entry symbol name.
+    `Recompiler::rename_symbols` (`recompiler.rs`) renames a few symbols:
+
+    - Entry point to `_xstart`. (hardcoded)
+    - All else based on aliases in config.
 
 ### 5. Recompile each function
 

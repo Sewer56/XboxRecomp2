@@ -8,6 +8,7 @@ use super::{ConfigError, LoadedConfig, MidAsmHook, RecompilerConfig, directory_o
 use core::str::from_utf8;
 use serde::Deserialize;
 use serde::de::Error as _;
+use std::collections::HashMap;
 use toml::{Table, Value};
 
 /// The whole config file as serde reads it, before it becomes a
@@ -33,6 +34,9 @@ struct ConfigDocument {
     switch: Vec<SwitchTable>,
 
     #[serde(default)]
+    alias: AliasesSection,
+
+    #[serde(default)]
     midasm_hook: Vec<MidAsmHookEntry>,
 }
 
@@ -44,6 +48,13 @@ struct FixesSection {
     function_hooks: Vec<u32>,
     invalid_instructions: Vec<InvalidInstructionEntry>,
     banned_addresses: Vec<BannedAddressEntry>,
+}
+
+/// The `[alias]` section.
+#[derive(Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct AliasesSection {
+    symbol_aliases: HashMap<String, String>,
 }
 
 /// The `[main]` section.
@@ -333,8 +344,23 @@ fn build(path: &str, raw: ConfigDocument) -> Result<LoadedConfig, ConfigError> {
             single_thread_locks_from: raw.speed_hacks.single_thread_locks_from,
             check_single_thread_locks: raw.speed_hacks.check_single_thread_locks,
         },
+        symbol_aliases: raw.alias.symbol_aliases,
         ..RecompilerConfig::default()
     };
+
+    let mut seen: HashMap<&str, &str> = HashMap::new(); // alias -> key
+    for (key, alias) in &config.symbol_aliases {
+        if let Some(prev) = seen.insert(alias.as_str(), key.as_str()) {
+            // No two symbols can have the same emitted name.
+            // Either we catch it here, or it becomes a compiler error later.
+            return Err(ConfigError::Schema {
+                path: path.into(),
+                source: Box::new(toml::de::Error::custom(format!(
+                    "alias.symbol_aliases: alias `{alias}` is used by both `{prev}` and `{key}`"
+                ))),
+            });
+        }
+    }
 
     for entry in raw.fixes.functions {
         config.functions.insert_or_overwrite(
@@ -583,6 +609,27 @@ mod tests {
                 .to_string()
                 .starts_with("cfg/recomp.toml:")
         );
+    }
+
+    /// Tests that no symbol aliases can have duplicated emitted names.
+    #[test]
+    fn symbol_aliases_no_duplicates() {
+        let result = parse(indoc! {r#"
+            [alias]
+            symbol_aliases = {
+                sub_3D3240 = "D3D_CommonSetDebugRegisters",
+                sub_3D3241 = "D3D_CommonSetDebugRegisters"
+            }
+        "#});
+
+        let Err(err) = result else {
+            panic!("duplicate alias should be rejected");
+        };
+
+        let msg = err.to_string();
+        assert!(msg.contains("D3D_CommonSetDebugRegisters"), "{msg}");
+        assert!(msg.contains("sub_3D3240"), "{msg}");
+        assert!(msg.contains("sub_3D3241"), "{msg}");
     }
 
     /// Checks that `result` is a schema error and returns its message.

@@ -8,7 +8,7 @@
 //!
 //! 2. Analyse: find the functions to recompile.
 //!    - [`Recompiler::analyse`]: discover the recompilable functions.
-//!    - [`Recompiler::rename_entry_symbol`]: rename the entry point to `_xstart`.
+//!    - [`Recompiler::rename_symbols`]: name the entry point `_xstart` and apply aliases.
 //!
 //! 3. Generate: produce the C++ file set.
 //!    - [`Recompiler::recompile`]: write the files to disk.
@@ -28,7 +28,7 @@ use crate::executable::{Executable, ExecutableFormat, parse_executable_with};
 use crate::output::{DiskWriter, OutError, OutputWriter};
 use crate::output::{GeneratedFileSet, MemoryWriter};
 use crate::platform::GuestPlatform;
-use ahash::{HashSet, HashSetExt};
+use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
@@ -54,7 +54,7 @@ const PROGRESS_INTERVAL: usize = 600;
 ///
 /// - [`Recompiler::load_input`]
 /// - [`Recompiler::analyse`]
-/// - [`Recompiler::rename_entry_symbol`]
+/// - [`Recompiler::rename_symbols`]
 /// - [`Recompiler::recompile`]
 pub struct Recompiler<'a> {
     /// The parsed guest executable.
@@ -128,6 +128,17 @@ pub enum RunError {
         path: PathBuf,
         /// The guest entry point address.
         address: GuestAddress64,
+    },
+
+    /// An `alias.symbol_aliases` entry gives a duplicate name.
+    #[error("alias.symbol_aliases: duplicate name `{name}` at 0x{first:X} and 0x{second:X}")]
+    DuplicateName {
+        /// The name both symbols have.
+        name: Box<str>,
+        /// Address of the first symbol with `name`.
+        first: u64,
+        /// Address of the second symbol with `name`.
+        second: u64,
     },
 
     /// Writing the output files failed.
@@ -334,13 +345,14 @@ impl<'a> Recompiler<'a> {
         self.bodies.get(&GuestAddress64::from(address))
     }
 
-    /// Runs [`Recompiler::analyse`], then renames the entry symbol.
+    /// Runs [`Recompiler::analyse`], then [`Recompiler::rename_symbols`].
     /// Fails if there's nothing usable to generate.
     ///
     /// # Errors
     ///
     /// - [`RunError::NoDerivableFunctions`]: no functions were found.
     /// - [`RunError::MissingEntryPoint`]: no function starts at the entry point.
+    /// - [`RunError::DuplicateName`]: another symbol or alias already has this name.
     pub(crate) fn analyse_requiring_functions(
         &mut self,
         input: &Path,
@@ -366,12 +378,23 @@ impl<'a> Recompiler<'a> {
             });
         }
 
-        self.rename_entry_symbol();
-        Ok(())
+        self.rename_symbols()
     }
 
-    /// Renames the entry point's symbol to `_xstart`.
-    pub fn rename_entry_symbol(&mut self) {
+    /// Gives symbols their final names.
+    ///
+    /// - Entry point -> `_xstart`.
+    /// - Then apply `alias.symbol_aliases`.
+    ///
+    /// # Returns
+    ///
+    /// [`Ok`] when all renamed.
+    ///
+    /// # Errors
+    ///
+    /// - [`RunError::DuplicateName`]: got a duplicate after aliasing.
+    pub fn rename_symbols(&mut self) -> Result<(), RunError> {
+        // Set name for entry point.
         if let Some(symbol) = self
             .executable
             .symbols
@@ -379,6 +402,40 @@ impl<'a> Recompiler<'a> {
         {
             symbol.name = "_xstart".into();
         }
+
+        // Apply the aliases.
+        let aliases = &self.config.symbol_aliases;
+        if aliases.is_empty() {
+            return Ok(());
+        }
+
+        for symbol in self.executable.symbols.iter_mut() {
+            if let Some(alias) = aliases.get(&*symbol.name) {
+                symbol.name = alias.as_str().into();
+            }
+        }
+
+        // Quick check for duplicate.
+        let mut name_to_address: HashMap<&str, u64> =
+            HashMap::with_capacity(self.executable.symbols.len());
+        for symbol in self.executable.symbols.iter() {
+            let address = symbol.address.get();
+            let first = match name_to_address.insert(&symbol.name, address) {
+                Some(first) => first,
+                None => continue,
+            };
+
+            // If does not match first address, error.
+            if first != address {
+                return Err(RunError::DuplicateName {
+                    name: symbol.name.clone(),
+                    first,
+                    second: address,
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Generates C++ for the analysed functions and writes it to disk:
